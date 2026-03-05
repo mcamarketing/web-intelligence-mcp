@@ -1,4 +1,5 @@
-# Web Intelligence MCP Server - Apify Actor Dockerfile
+﻿# Web Intelligence MCP Server - Apify Actor Dockerfile
+# Build: 2
 
 FROM node:20-slim
 
@@ -18,21 +19,24 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 # Create app directory
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy package files first (for better caching)
 COPY package*.json tsconfig.json ./
 
-# Install ALL dependencies (including devDependencies for build)
+# Install ALL dependencies (including devDependencies for TypeScript build)
 RUN npm ci
 
 # Copy source code
 COPY src ./src
 COPY .actor ./.actor
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript - this creates the dist folder
+RUN npm run build && ls -la dist/
+
+# Verify main.js exists
+RUN test -f dist/main.js && echo "Build successful: dist/main.js exists"
 
 # Expose port (Apify sets APIFY_WEB_SERVER_PORT)
 EXPOSE 3000
 
 # Start the Actor
-CMD ["npm", "start"]
+CMD ["node", "dist/main.js"]

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Web Intelligence MCP Server for Apify
  * 
@@ -537,4 +537,3 @@ if (transportType === 'stdio') {
     });
   });
 }
-.Replace('Actor.log.info', 'console.log').Replace('Actor.log.error', 'console.error')

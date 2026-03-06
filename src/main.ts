@@ -8,27 +8,15 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { knowledgeGraph } from './knowledge-graph.js';
+import { graphClient } from './forage-graph-client.js';
 
 await Actor.init();
-await knowledgeGraph.init().catch(() => {}); // Silent init — never block startup
 
 // ==========================================
 // ERNESTA LABS BIBLE SECTION 5: PRICING CONFIG
 // Actor.charge() values are PRE-CALCULATED to include margin after Apify's ~25% cut
 // ==========================================
 
-type ActorTier = 'native' | 'verified' | 'open';
-
-interface ActorPricing {
-  tier: ActorTier;
-  actorChargeValue: number;
-  unitName: string;
-  description: string;
-  requiresCount?: boolean;
-}
-
-// TIER 1: NATIVE TOOLS (Section 5 pricing)
 const PRICING = {
   // Native Core
   SEARCH_WEB: { event: 'search-web', charge: 0.03, unit: 'per_call', net: 0.022 },
@@ -52,7 +40,6 @@ const PRICING = {
   OPEN_ACCESS_MINIMUM_FEE: 0.01
 };
 
-// TIER 2: VERIFIED PARTNERS
 const VERIFIED_ACTORS = new Map<string, { charge: number; unit: string; desc: string }>([
   ['apify/website-content-crawler', { charge: 0.20, unit: 'per_1000_pages', desc: 'Deep website crawling' }],
   ['apify/google-maps-scraper', { charge: 0.27, unit: 'per_1000_places', desc: 'Google Maps reviews' }],
@@ -64,7 +51,6 @@ const VERIFIED_ACTORS = new Map<string, { charge: number; unit: string; desc: st
 ]);
 
 const TOOLS = [
-  // Tier 1 Native
   {
     name: 'search_web',
     description: 'Google Search. Cost: $0.03/call',
@@ -144,8 +130,6 @@ const TOOLS = [
       required: ['job_title'],
     },
   },
-  
-  // Knowledge Graph
   {
     name: 'query_knowledge',
     description: 'Query accumulated intelligence. Cost: $0.02/query',
@@ -188,8 +172,6 @@ const TOOLS = [
     description: 'Knowledge graph statistics. Free.',
     inputSchema: { type: 'object', properties: {} },
   },
-  
-  // Universal Gateway
   {
     name: 'list_verified_actors',
     description: 'Browse curated verified actors. Cost: $0.01/call',
@@ -251,25 +233,19 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      // Tier 1 Native
       case 'search_web': return await handleSearchWeb(args as any);
       case 'scrape_page': return await handleScrapePage(args as any);
       case 'get_company_info': return await handleGetCompanyInfo(args as any);
       case 'find_emails': return await handleFindEmails(args as any);
       case 'find_local_leads': return await handleFindLocalLeads(args as any);
       case 'find_leads': return await handleFindLeads(args as any);
-      
-      // Knowledge Graph
       case 'query_knowledge': return await handleQueryKnowledge(args as any);
       case 'enrich_entity': return await handleEnrichEntity(args as any);
       case 'find_connections': return await handleFindConnections(args as any);
       case 'get_graph_stats': return await handleGetGraphStats();
-      
-      // Universal Gateway
       case 'list_verified_actors': return await handleListVerifiedActors(args as any);
       case 'get_actor_schema': return await handleGetActorSchema(args as any);
       case 'call_actor': return await handleCallActor(args as any);
-      
       default: throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
@@ -307,7 +283,8 @@ async function handleSearchWeb({ query, num_results = 10 }: { query: string; num
     }] 
   };
   
-  knowledgeGraph.ingest('search_web', { query, results }).catch(() => {});
+  // Fire and forget to graph service
+  graphClient.ingest('search_web', { query, results });
   return res;
 }
 
@@ -334,15 +311,12 @@ async function handleScrapePage({ url }: { url: string }) {
     content = ($('main, article, .content').first().text() || $('body').text()).replace(/\s+/g, ' ').trim();
   }
 
-  const response = { 
+  return { 
     content: [{ 
       type: 'text', 
       text: JSON.stringify({ url, title, content, cost_usd: PRICING.SCRAPE_PAGE.charge }, null, 2) 
     }] 
   };
-  
-  knowledgeGraph.ingest('scrape_page', { url, title, content }).catch(() => {});
-  return response;
 }
 
 async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: string; find_emails?: boolean }) {
@@ -390,7 +364,8 @@ async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: st
     }],
   };
   
-  knowledgeGraph.ingest('get_company_info', { domain: cleanDomain, website: websiteData, email_intelligence: emailData }).catch(() => {});
+  // Fire and forget to graph service
+  graphClient.ingest('get_company_info', { domain: cleanDomain, website: websiteData, email_intelligence: emailData });
   return res;
 }
 
@@ -432,7 +407,8 @@ async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?
     }],
   };
   
-  knowledgeGraph.ingest('find_emails', { domain, organization: data.data?.organization, pattern: data.data?.pattern, emails }).catch(() => {});
+  // Fire and forget to graph service
+  graphClient.ingest('find_emails', { domain, organization: data.data?.organization, pattern: data.data?.pattern, emails });
   return res;
 }
 
@@ -481,7 +457,8 @@ async function handleFindLocalLeads({ keyword, location, radius = 5000, max_resu
     }] 
   };
   
-  knowledgeGraph.ingest('find_local_leads', { keyword, location, leads }).catch(() => {});
+  // Fire and forget to graph service
+  graphClient.ingest('find_local_leads', { keyword, location, leads });
   return res;
 }
 
@@ -519,8 +496,6 @@ async function handleFindLeads(args: any) {
     }
     
     const runInfo = await Actor.apifyClient.run(run.id).get();
-    
-    // FIX: TypeScript type narrowing with non-null assertion
     if (!runInfo) throw new Error('Failed to get run info');
     
     if (runInfo.status === 'SUCCEEDED') {
@@ -529,7 +504,6 @@ async function handleFindLeads(args: any) {
       const pageLimit = 250;
       
       while (true) {
-        // FIX: Use non-null assertion for defaultDatasetId
         const result = await Actor.apifyClient.dataset(runInfo.defaultDatasetId!).listItems({ 
           offset, 
           limit: pageLimit 
@@ -567,11 +541,11 @@ async function handleFindLeads(args: any) {
         }],
       };
       
-      knowledgeGraph.ingest('find_leads', { leads: formattedLeads }).catch(() => {});
+      // Fire and forget to graph service
+      graphClient.ingest('find_leads', { leads: formattedLeads });
       return response;
     }
     
-    // FIX: Use non-null assertion for status checks
     if (['FAILED', 'TIMED_OUT', 'ABORTED'].includes(runInfo.status!)) {
       throw new Error(`Leads finder ${runInfo.status}: ${runInfo.statusMessage || 'Unknown error'}`);
     }
@@ -582,61 +556,141 @@ async function handleFindLeads(args: any) {
 }
 
 // ==========================================
-// KNOWLEDGE GRAPH HANDLERS
+// KNOWLEDGE GRAPH HANDLERS (Proxy to Graph Service)
 // ==========================================
 
 async function handleQueryKnowledge(args: any) {
   await Actor.charge({ eventName: PRICING.QUERY_KNOWLEDGE.event, count: 1 });
-  const result = await knowledgeGraph.findEntity(args.question, args.entity_type !== 'any' ? args.entity_type : undefined);
-  return {
-    content: [{
-      type: 'text',
-      text: JSON.stringify({
-        question: args.question,
-        results: result,
-        cost_usd: PRICING.QUERY_KNOWLEDGE.charge
-      }, null, 2)
-    }]
-  };
+  
+  if (!process.env.GRAPH_API_URL) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }, null, 2) }],
+      isError: true
+    };
+  }
+  
+  try {
+    const res = await axios.post(`${process.env.GRAPH_API_URL}/query`, {
+      name: args.question,
+      type: args.entity_type !== 'any' ? args.entity_type : undefined,
+      min_confidence: args.min_confidence || 0.0
+    }, {
+      headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` }
+    });
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          question: args.question,
+          results: res.data.entities,
+          cost_usd: PRICING.QUERY_KNOWLEDGE.charge
+        }, null, 2)
+      }]
+    };
+  } catch (err: any) {
+    return {
+      content: [{ type: 'text', text: `Graph query failed: ${err.message}` }],
+      isError: true
+    };
+  }
 }
 
 async function handleEnrichEntity(args: any) {
   await Actor.charge({ eventName: PRICING.ENRICH_ENTITY.event, count: 1 });
-  const result = await knowledgeGraph.enrich(args.identifier);
-  return {
-    content: [{
-      type: 'text',
-      text: JSON.stringify({
-        identifier: args.identifier,
-        ...result,
-        cost_usd: PRICING.ENRICH_ENTITY.charge
-      }, null, 2)
-    }]
-  };
+  
+  if (!process.env.GRAPH_API_URL) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }, null, 2) }],
+      isError: true
+    };
+  }
+  
+  try {
+    const res = await axios.post(`${process.env.GRAPH_API_URL}/enrich`, {
+      identifier: args.identifier
+    }, {
+      headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` }
+    });
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          identifier: args.identifier,
+          ...res.data,
+          cost_usd: PRICING.ENRICH_ENTITY.charge
+        }, null, 2)
+      }]
+    };
+  } catch (err: any) {
+    return {
+      content: [{ type: 'text', text: `Graph enrich failed: ${err.message}` }],
+      isError: true
+    };
+  }
 }
 
 async function handleFindConnections(args: any) {
   await Actor.charge({ eventName: PRICING.FIND_CONNECTIONS.event, count: 1 });
-  const result = await knowledgeGraph.findConnections(args.from_entity, args.to_entity, args.max_hops);
-  return {
-    content: [{
-      type: 'text',
-      text: JSON.stringify({
-        ...result,
-        cost_usd: PRICING.FIND_CONNECTIONS.charge
-      }, null, 2)
-    }]
-  };
+  
+  if (!process.env.GRAPH_API_URL) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }, null, 2) }],
+      isError: true
+    };
+  }
+  
+  try {
+    const res = await axios.post(`${process.env.GRAPH_API_URL}/connections`, {
+      from: args.from_entity,
+      to: args.to_entity,
+      max_hops: args.max_hops || 3
+    }, {
+      headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` }
+    });
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          ...res.data,
+          cost_usd: PRICING.FIND_CONNECTIONS.charge
+        }, null, 2)
+      }]
+    };
+  } catch (err: any) {
+    return {
+      content: [{ type: 'text', text: `Graph connections failed: ${err.message}` }],
+      isError: true
+    };
+  }
 }
 
 async function handleGetGraphStats() {
-  const stats = await knowledgeGraph.getStats();
-  return {
-    content: [{
-      type: 'text',
-      text: JSON.stringify({ knowledge_graph: stats }, null, 2)
-    }]
-  };
+  if (!process.env.GRAPH_API_URL) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ status: 'Graph service not configured' }, null, 2) }]
+    };
+  }
+  
+  try {
+    const res = await axios.get(`${process.env.GRAPH_API_URL}/stats`, {
+      headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` }
+    });
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ knowledge_graph: res.data }, null, 2)
+      }]
+    };
+  } catch (err: any) {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ error: err.message }, null, 2) }],
+      isError: true
+    };
+  }
 }
 
 // ==========================================
@@ -746,7 +800,6 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
     }
 
     const runInfo = await Actor.apifyClient.run(run.id).get();
-    
     if (!runInfo) throw new Error('Failed to retrieve run information');
     
     if (runInfo.status === 'SUCCEEDED') {
@@ -754,7 +807,6 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
       let offset = 0;
       
       while (true) {
-        // FIX: Non-null assertion for defaultDatasetId
         const result = await Actor.apifyClient.dataset(runInfo.defaultDatasetId!).listItems({ offset, limit: 1000 });
         items.push(...result.items);
         offset += result.items.length;

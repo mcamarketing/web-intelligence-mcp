@@ -1,12 +1,10 @@
-#!/usr/bin/env node
 import { Actor } from 'apify';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  Tool,
+import { 
+  CallToolRequestSchema, 
+  ListToolsRequestSchema 
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -16,34 +14,45 @@ await Actor.init();
 await knowledgeGraph.init().catch(() => {}); // Silent init — never block startup
 
 // ==========================================
-// ERNESTA LABS BIBLE SECTION 5 — PRICING CONFIG
-// Actor.charge() values = Our platform price (Apify takes ~25%, we net the rest)
+// ERNESTA LABS BIBLE SECTION 5: PRICING CONFIG
+// Actor.charge() values are PRE-CALCULATED to include margin after Apify's ~25% cut
 // ==========================================
 
+type ActorTier = 'native' | 'verified' | 'open';
+
+interface ActorPricing {
+  tier: ActorTier;
+  actorChargeValue: number;
+  unitName: string;
+  description: string;
+  requiresCount?: boolean;
+}
+
+// TIER 1: NATIVE TOOLS (Section 5 pricing)
 const PRICING = {
-  // Tier 1: Native Tools (70% margins)
+  // Native Core
   SEARCH_WEB: { event: 'search-web', charge: 0.03, unit: 'per_call', net: 0.022 },
   SCRAPE_PAGE: { event: 'scrape-page', charge: 0.07, unit: 'per_call', net: 0.052 },
   GET_COMPANY_INFO: { event: 'get-company-info', charge: 0.08, unit: 'per_call', net: 0.060 },
   FIND_EMAILS: { event: 'find-emails', charge: 0.10, unit: 'per_call', net: 0.075 },
   FIND_LOCAL_LEADS: { event: 'find-local-leads', charge: 0.15, unit: 'per_call', net: 0.112 },
-  FIND_LEADS: { event: 'find-leads', charge: 0.25, unit: 'per_100_leads', net: 0.187 }, // Section 5: $0.25 per 100
+  FIND_LEADS: { event: 'find-leads', charge: 0.25, unit: 'per_100_leads', net: 0.187 },
   
-  // Discovery layer
+  // Discovery
   LIST_ACTORS: { event: 'list-verified', charge: 0.01, unit: 'per_call', net: 0.007 },
   GET_SCHEMA: { event: 'get-schema', charge: 0.01, unit: 'per_call', net: 0.007 },
   
-  // Knowledge Graph (Section 6 — new revenue stream)
+  // Knowledge Graph
   QUERY_KNOWLEDGE: { event: 'query-knowledge', charge: 0.02, unit: 'per_query', net: 0.015 },
   ENRICH_ENTITY: { event: 'enrich-entity', charge: 0.03, unit: 'per_call', net: 0.022 },
   FIND_CONNECTIONS: { event: 'find-connections', charge: 0.05, unit: 'per_call', net: 0.037 },
   
-  // Open Access Tier 3
+  // Open Access
   OPEN_ACCESS_MARKUP_PERCENT: 25,
   OPEN_ACCESS_MINIMUM_FEE: 0.01
 };
 
-// Tier 2: Verified Partners (from Bible Section 2 & 6)
+// TIER 2: VERIFIED PARTNERS
 const VERIFIED_ACTORS = new Map<string, { charge: number; unit: string; desc: string }>([
   ['apify/website-content-crawler', { charge: 0.20, unit: 'per_1000_pages', desc: 'Deep website crawling' }],
   ['apify/google-maps-scraper', { charge: 0.27, unit: 'per_1000_places', desc: 'Google Maps reviews' }],
@@ -54,8 +63,8 @@ const VERIFIED_ACTORS = new Map<string, { charge: number; unit: string; desc: st
   ['code_crafter/leads-finder', { charge: 0.25, unit: 'per_100_leads', desc: 'B2B leads with emails' }],
 ]);
 
-const TOOLS: Tool[] = [
-  // === TIER 1: NATIVE (Bible Section 5) ===
+const TOOLS = [
+  // Tier 1 Native
   {
     name: 'search_web',
     description: 'Google Search. Cost: $0.03/call',
@@ -70,7 +79,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'scrape_page',
-    description: 'Scrape any webpage. Cost: $0.07/call',
+    description: 'Extract clean text from any URL. Cost: $0.07/call',
     inputSchema: {
       type: 'object',
       properties: {
@@ -81,7 +90,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_company_info',
-    description: 'Company intelligence. Cost: $0.08/call',
+    description: 'Unified company intelligence. Cost: $0.08/call',
     inputSchema: {
       type: 'object',
       properties: {
@@ -105,7 +114,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'find_local_leads',
-    description: 'Google Maps leads. Cost: $0.15/call',
+    description: 'Google Maps lead gen. Cost: $0.15/call',
     inputSchema: {
       type: 'object',
       properties: {
@@ -119,27 +128,27 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'find_leads',
-    description: 'B2B leads with emails. Cost: $0.25 per 100 leads',
+    description: 'B2B leads via Apify. Cost: $0.25 per 100 leads',
     inputSchema: {
       type: 'object',
       properties: {
-        job_title: { type: 'string', description: 'e.g., "CEO, CTO, Founder"' },
-        location: { type: 'string', description: 'e.g., "San Francisco, CA"' },
+        job_title: { type: 'string' },
+        location: { type: 'string' },
         industry: { type: 'string' },
         company_size: { type: 'string' },
         keywords: { type: 'string' },
         company_website: { type: 'string' },
         num_leads: { type: 'number', default: 100 },
-        email_status: { type: 'string', enum: ['verified', 'unverified', 'all'], default: 'verified' },
+        email_status: { type: 'string', default: 'verified' },
       },
       required: ['job_title'],
     },
   },
   
-  // === KNOWLEDGE GRAPH TOOLS (Bible Section 6 — The Moat) ===
+  // Knowledge Graph
   {
     name: 'query_knowledge',
-    description: 'Query accumulated Forage intelligence. Cost: $0.02/query. Ask: "What fintech companies are in London?"',
+    description: 'Query accumulated intelligence. Cost: $0.02/query',
     inputSchema: {
       type: 'object',
       properties: {
@@ -152,7 +161,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'enrich_entity',
-    description: 'Get everything Forage knows about a company/domain. Cost: $0.03/call',
+    description: 'Get everything known about a company/domain. Cost: $0.03/call',
     inputSchema: {
       type: 'object',
       properties: {
@@ -180,14 +189,14 @@ const TOOLS: Tool[] = [
     inputSchema: { type: 'object', properties: {} },
   },
   
-  // === UNIVERSAL GATEWAY (Tier 2 Verified + Tier 3 Open) ===
+  // Universal Gateway
   {
     name: 'list_verified_actors',
     description: 'Browse curated verified actors. Cost: $0.01/call',
     inputSchema: {
       type: 'object',
       properties: {
-        category: { type: 'string', enum: ['all', 'social', 'leads', 'scraping', 'documents'], default: 'all' },
+        category: { type: 'string', default: 'all' },
       },
     },
   },
@@ -218,9 +227,20 @@ const TOOLS: Tool[] = [
   },
 ];
 
+// ==========================================
+// MCP SERVER SETUP
+// ==========================================
+
 const mcpServer = new Server(
-  { name: 'forage-mcp', version: '2.0.0' },
-  { capabilities: { tools: {} } }
+  {
+    name: 'web-intelligence-mcp',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
 );
 
 mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
@@ -262,33 +282,55 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // ==========================================
-// BIBLE SECTION 7 — FIX 1: JINA AI HTTPS URL
+// HANDLERS
 // ==========================================
+
+async function handleSearchWeb({ query, num_results = 10 }: { query: string; num_results?: number }) {
+  await Actor.charge({ eventName: PRICING.SEARCH_WEB.event, count: 1 });
+  
+  const key = process.env.SERPAPI_KEY;
+  if (!key) throw new Error('SERPAPI_KEY not configured');
+
+  const response = await axios.get('https://serpapi.com/search', {
+    params: { q: query, api_key: key, engine: 'google', num: Math.min(num_results, 20) },
+    timeout: 30000,
+  });
+
+  const results = response.data.organic_results?.map((r: any) => ({
+    title: r.title, link: r.link, snippet: r.snippet
+  })) || [];
+
+  const res = { 
+    content: [{ 
+      type: 'text', 
+      text: JSON.stringify({ query, results, cost_usd: PRICING.SEARCH_WEB.charge }, null, 2) 
+    }] 
+  };
+  
+  knowledgeGraph.ingest('search_web', { query, results }).catch(() => {});
+  return res;
+}
 
 async function handleScrapePage({ url }: { url: string }) {
   await Actor.charge({ eventName: PRICING.SCRAPE_PAGE.event, count: 1 });
-  
+
   const jinaKey = process.env.JINA_AI_KEY;
   let content: string;
   let title: string;
 
   if (jinaKey) {
-    // FIX 1: Use https:// protocol (not http://) to preserve SSL
     const cleanUrl = url.replace(/^https?:\/\//, '');
     const res = await axios.get(`https://r.jina.ai/https://${cleanUrl}`, {
       headers: { Authorization: `Bearer ${jinaKey}` },
       timeout: 30000,
     });
-    content = res.data;
-    title = content.split('\n')[0] || url;
+    const lines = res.data.split('\n');
+    title = lines[0].replace(/^Title: /, '');
+    content = lines.slice(1).join('\n').replace(/^Content: /, '').trim();
   } else {
-    const res = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      timeout: 15000,
-    });
+    const res = await axios.get(url, { timeout: 30000 });
     const $ = cheerio.load(res.data);
-    title = $('title').text() || url;
-    $('script, style, nav, footer').remove();
+    title = $('title').text();
     content = ($('main, article, .content').first().text() || $('body').text()).replace(/\s+/g, ' ').trim();
   }
 
@@ -299,19 +341,153 @@ async function handleScrapePage({ url }: { url: string }) {
     }] 
   };
   
-  // Feed knowledge graph (non-blocking)
   knowledgeGraph.ingest('scrape_page', { url, title, content }).catch(() => {});
   return response;
 }
 
-// ==========================================
-// BIBLE SECTION 7 — FIX 2: PAGINATION OFFSET LOOP
-// ==========================================
+async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: string; find_emails?: boolean }) {
+  await Actor.charge({ eventName: PRICING.GET_COMPANY_INFO.event, count: 1 });
+
+  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  let websiteData = {};
+  let emailData = null;
+
+  try {
+    const res = await axios.get(`https://r.jina.ai/https://${cleanDomain}`, {
+      headers: { Authorization: `Bearer ${process.env.JINA_AI_KEY}` },
+      timeout: 15000,
+    });
+    const lines = res.data.split('\n');
+    websiteData = {
+      title: lines[0]?.replace(/^Title: /, ''),
+      description: lines[1]?.replace(/^Content: /, '').substring(0, 500),
+    };
+  } catch (e) {
+    websiteData = { error: 'Could not fetch website' };
+  }
+
+  if (find_emails) {
+    try {
+      emailData = await axios.get('https://api.hunter.io/v2/domain-search', {
+        params: { domain: cleanDomain, api_key: process.env.HUNTER_API_KEY },
+        timeout: 15000,
+      }).then(r => r.data.data);
+    } catch (e) {
+      emailData = { error: 'Email search failed' };
+    }
+  }
+
+  const res = {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        domain: cleanDomain,
+        website: websiteData,
+        email_intelligence: emailData,
+        cost_usd: PRICING.GET_COMPANY_INFO.charge,
+        timestamp: new Date().toISOString(),
+      }, null, 2),
+    }],
+  };
+  
+  knowledgeGraph.ingest('get_company_info', { domain: cleanDomain, website: websiteData, email_intelligence: emailData }).catch(() => {});
+  return res;
+}
+
+async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?: number }) {
+  await Actor.charge({ eventName: PRICING.FIND_EMAILS.event, count: 1 });
+
+  const key = process.env.HUNTER_API_KEY;
+  if (!key) throw new Error('HUNTER_API_KEY not configured');
+
+  const { data } = await axios.get('https://api.hunter.io/v2/domain-search', {
+    params: { domain, api_key: key, limit },
+    timeout: 15000,
+  });
+
+  const emails = data.data?.emails?.map((e: any) => ({
+    email: e.value,
+    type: e.type,
+    confidence: e.confidence,
+    first_name: e.first_name,
+    last_name: e.last_name,
+    position: e.position,
+    seniority: e.seniority,
+    department: e.department,
+    linkedin: e.linkedin,
+    phone_number: e.phone_number,
+  })) || [];
+
+  const res = {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        domain,
+        organization: data.data?.organization,
+        emails_found: emails.length,
+        pattern: data.data?.pattern,
+        emails,
+        cost_usd: PRICING.FIND_EMAILS.charge,
+      }, null, 2),
+    }],
+  };
+  
+  knowledgeGraph.ingest('find_emails', { domain, organization: data.data?.organization, pattern: data.data?.pattern, emails }).catch(() => {});
+  return res;
+}
+
+async function handleFindLocalLeads({ keyword, location, radius = 5000, max_results = 20 }: any) {
+  await Actor.charge({ eventName: PRICING.FIND_LOCAL_LEADS.event, count: 1 });
+
+  const key = process.env.GOOGLE_PLACES_API_KEY;
+  if (!key) throw new Error('GOOGLE_PLACES_API_KEY not configured');
+
+  const query = `${keyword} in ${location}`;
+  const { data } = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
+    params: { query, radius, key, maxResults: max_results },
+  });
+
+  const leads = await Promise.all(
+    (data.results || []).slice(0, max_results).map(async (place: any) => {
+      try {
+        const details = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+          params: { place_id: place.place_id, fields: 'website,formatted_phone_number', key },
+        });
+        return {
+          name: place.name,
+          address: place.formatted_address,
+          rating: place.rating,
+          user_ratings_total: place.user_ratings_total,
+          place_id: place.place_id,
+          website: details.data.result?.website,
+          phone: details.data.result?.formatted_phone_number,
+          location: place.geometry?.location,
+        };
+      } catch (e) {
+        return {
+          name: place.name,
+          address: place.formatted_address,
+          rating: place.rating,
+          place_id: place.place_id,
+        };
+      }
+    })
+  );
+
+  const res = { 
+    content: [{ 
+      type: 'text', 
+      text: JSON.stringify({ keyword, location, leads, cost_usd: PRICING.FIND_LOCAL_LEADS.charge }, null, 2) 
+    }] 
+  };
+  
+  knowledgeGraph.ingest('find_local_leads', { keyword, location, leads }).catch(() => {});
+  return res;
+}
 
 async function handleFindLeads(args: any) {
   const { job_title, location, industry, company_size, keywords, company_website, num_leads = 100, email_status = 'verified' } = args;
   
-  // Section 5 pricing: $0.25 per 100 leads
   const chargeUnits = Math.ceil(num_leads / 100);
   await Actor.charge({ eventName: PRICING.FIND_LEADS.event, count: chargeUnits });
   
@@ -343,23 +519,24 @@ async function handleFindLeads(args: any) {
     }
     
     const runInfo = await Actor.apifyClient.run(run.id).get();
+    
+    // FIX: TypeScript type narrowing with non-null assertion
     if (!runInfo) throw new Error('Failed to get run info');
     
     if (runInfo.status === 'SUCCEEDED') {
-      // FIX 2: Paginated offset loop (handles 1000 leads, not just 250)
       const allItems: any[] = [];
       let offset = 0;
-      const pageLimit = 250; // Apify default page size
+      const pageLimit = 250;
       
       while (true) {
-        const result = await Actor.apifyClient.dataset(runInfo.defaultDatasetId).listItems({ 
+        // FIX: Use non-null assertion for defaultDatasetId
+        const result = await Actor.apifyClient.dataset(runInfo.defaultDatasetId!).listItems({ 
           offset, 
           limit: pageLimit 
         });
         const items = result.items ?? [];
         allItems.push(...items);
         offset += items.length;
-        // Break if we got fewer items than limit (last page)
         if (items.length === 0 || items.length < pageLimit) break;
       }
       
@@ -390,12 +567,12 @@ async function handleFindLeads(args: any) {
         }],
       };
       
-      // Feed knowledge graph (non-blocking)
       knowledgeGraph.ingest('find_leads', { leads: formattedLeads }).catch(() => {});
       return response;
     }
     
-    if (['FAILED', 'TIMED_OUT', 'ABORTED'].includes(runInfo.status)) {
+    // FIX: Use non-null assertion for status checks
+    if (['FAILED', 'TIMED_OUT', 'ABORTED'].includes(runInfo.status!)) {
       throw new Error(`Leads finder ${runInfo.status}: ${runInfo.statusMessage || 'Unknown error'}`);
     }
     
@@ -405,201 +582,7 @@ async function handleFindLeads(args: any) {
 }
 
 // ==========================================
-// BIBLE SECTION 7 — FIX 3: MARGIN AUDIT (All charges use Section 5 pricing)
-// ==========================================
-
-async function handleSearchWeb({ query, num_results = 10 }: { query: string; num_results?: number }) {
-  await Actor.charge({ eventName: PRICING.SEARCH_WEB.event, count: 1 });
-  
-  const key = process.env.SERPAPI_KEY;
-  if (!key) throw new Error('SERPAPI_KEY not configured');
-
-  const response = await axios.get('https://serpapi.com/search', {
-    params: { q: query, api_key: key, engine: 'google', num: Math.min(num_results, 20) },
-    timeout: 30000,
-  });
-
-  const results = response.data.organic_results?.map((r: any) => ({
-    title: r.title, link: r.link, snippet: r.snippet
-  })) || [];
-
-  const res = { 
-    content: [{ 
-      type: 'text', 
-      text: JSON.stringify({ query, results, cost_usd: PRICING.SEARCH_WEB.charge }, null, 2) 
-    }] 
-  };
-  
-  knowledgeGraph.ingest('search_web', { query, results }).catch(() => {});
-  return res;
-}
-
-async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: string; find_emails?: boolean }) {
-  await Actor.charge({ eventName: PRICING.GET_COMPANY_INFO.event, count: 1 });
-  
-  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  
-  let websiteData: any = {};
-  try {
-    const url = `https://${cleanDomain}`;
-    const res = await axios.get(url, {
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      timeout: 15000,
-      maxRedirects: 5,
-    });
-    
-    const $ = cheerio.load(res.data);
-    websiteData = {
-      title: $('title').text()?.trim() || null,
-      description: $('meta[name="description"]').attr('content') || 
-                   $('meta[property="og:description"]').attr('content') || null,
-      social_links: {
-        linkedin: $('a[href*="linkedin.com"]').first().attr('href') || null,
-        twitter: $('a[href*="twitter.com"], a[href*="x.com"]').first().attr('href') || null,
-        facebook: $('a[href*="facebook.com"]').first().attr('href') || null,
-      },
-      contact_page: $('a[href*="contact"], a[href*="about"]').first().attr('href') || null,
-    };
-  } catch (error) {
-    websiteData = { error: 'Failed to scrape website', details: (error as Error).message };
-  }
-
-  let emailData: any = {};
-  if (find_emails && process.env.HUNTER_API_KEY) {
-    try {
-      const hunterRes = await axios.get('https://api.hunter.io/v2/domain-search', {
-        params: { domain: cleanDomain, api_key: process.env.HUNTER_API_KEY },
-        timeout: 15000,
-      });
-      emailData = {
-        pattern: hunterRes.data.data?.pattern || null,
-        organization: hunterRes.data.data?.organization || null,
-        sample_emails: hunterRes.data.data?.emails?.slice(0, 3).map((e: any) => ({
-          email: e.value,
-          position: e.position,
-        })) || [],
-      };
-    } catch (error) {
-      emailData = { error: 'Failed to fetch email data' };
-    }
-  }
-
-  const res = {
-    content: [{
-      type: 'text',
-      text: JSON.stringify({
-        domain: cleanDomain,
-        website: websiteData,
-        email_intelligence: emailData,
-        cost_usd: PRICING.GET_COMPANY_INFO.charge,
-        timestamp: new Date().toISOString(),
-      }, null, 2),
-    }],
-  };
-  
-  knowledgeGraph.ingest('get_company_info', { domain: cleanDomain, website: websiteData, email_intelligence: emailData }).catch(() => {});
-  return res;
-}
-
-async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?: number }) {
-  await Actor.charge({ eventName: PRICING.FIND_EMAILS.event, count: 1 });
-  
-  const key = process.env.HUNTER_API_KEY;
-  if (!key) throw new Error('HUNTER_API_KEY not configured');
-
-  const response = await axios.get('https://api.hunter.io/v2/domain-search', {
-    params: { domain, limit, api_key: key },
-    timeout: 30000,
-  });
-
-  const data = response.data.data;
-  const emails = data.emails?.map((e: any) => ({
-    email: e.value,
-    type: e.type,
-    confidence: e.confidence,
-    first_name: e.first_name,
-    last_name: e.last_name,
-    position: e.position,
-    seniority: e.seniority,
-    department: e.department,
-    linkedin: e.linkedin,
-    twitter: e.twitter,
-    phone_number: e.phone_number,
-  })) || [];
-
-  const res = {
-    content: [{
-      type: 'text',
-      text: JSON.stringify({
-        domain,
-        organization: data.organization,
-        emails_found: emails.length,
-        pattern: data.pattern,
-        emails,
-        cost_usd: PRICING.FIND_EMAILS.charge,
-      }, null, 2),
-    }],
-  };
-  
-  knowledgeGraph.ingest('find_emails', { domain, organization: data.organization, pattern: data.pattern, emails }).catch(() => {});
-  return res;
-}
-
-async function handleFindLocalLeads({ keyword, location, radius = 5000, max_results = 20 }: any) {
-  await Actor.charge({ eventName: PRICING.FIND_LOCAL_LEADS.event, count: 1 });
-  
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) throw new Error('GOOGLE_PLACES_API_KEY not configured');
-
-  const geo = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-    params: { address: location, key },
-  });
-  
-  if (geo.data.status !== 'OK') throw new Error(`Geocoding failed: ${geo.data.status}`);
-  const { lat, lng } = geo.data.results[0].geometry.location;
-
-  const places = await axios.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json', {
-    params: { location: `${lat},${lng}`, radius, keyword, key },
-  });
-
-  if (places.data.status !== 'OK') throw new Error(`Places search failed: ${places.data.status}`);
-
-  const leads = await Promise.all(
-    places.data.results.slice(0, max_results).map(async (place: any) => {
-      try {
-        const details = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
-          params: { place_id: place.place_id, fields: 'name,formatted_address,formatted_phone_number,website,rating', key },
-        });
-        const d = details.data.result;
-        return {
-          name: d.name, 
-          address: d.formatted_address, 
-          phone: d.formatted_phone_number,
-          website: d.website, 
-          rating: d.rating,
-          maps_url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`
-        };
-      } catch (e) {
-        return { name: place.name, rating: place.rating };
-      }
-    })
-  );
-
-  const res = { 
-    content: [{ 
-      type: 'text', 
-      text: JSON.stringify({ keyword, location, leads, cost_usd: PRICING.FIND_LOCAL_LEADS.charge }, null, 2) 
-    }] 
-  };
-  
-  knowledgeGraph.ingest('find_local_leads', { keyword, location, leads }).catch(() => {});
-  return res;
-}
-
-// ==========================================
-// KNOWLEDGE GRAPH HANDLERS (Bible Section 6)
+// KNOWLEDGE GRAPH HANDLERS
 // ==========================================
 
 async function handleQueryKnowledge(args: any) {
@@ -671,23 +654,21 @@ async function handleListVerifiedActors({ category = 'all' }: { category?: strin
       cost_usd: pricing.charge,
       unit: pricing.unit,
     }));
-  
+
   return {
     content: [{
       type: 'text',
       text: JSON.stringify({
-        tier: 'verified_partners',
-        count: verified.length,
         actors: category === 'all' ? verified : verified.filter(a => a.description?.includes(category)),
         cost_usd: PRICING.LIST_ACTORS.charge
-      }, null, 2)
+      }, null, 2),
     }]
   };
 }
 
 async function handleGetActorSchema({ actor_id }: { actor_id: string }) {
   await Actor.charge({ eventName: PRICING.GET_SCHEMA.event, count: 1 });
-  
+
   const response = await axios.get(`https://api.apify.com/v2/acts/${actor_id}`, {
     headers: process.env.APIFY_TOKEN ? { Authorization: `Bearer ${process.env.APIFY_TOKEN}` } : {}
   });
@@ -715,7 +696,6 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
   let estimatedCost = verified ? verified.charge : PRICING.OPEN_ACCESS_MINIMUM_FEE;
   
   if (!verified) {
-    // Try to fetch dynamic pricing for open access
     try {
       const res = await axios.get(`https://api.apify.com/v2/acts/${actor_id}`, {
         headers: process.env.APIFY_TOKEN ? { Authorization: `Bearer ${process.env.APIFY_TOKEN}` } : {}
@@ -727,13 +707,12 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
       estimatedCost = PRICING.OPEN_ACCESS_MINIMUM_FEE;
     }
   }
-  
+
   if (max_cost_usd !== undefined && estimatedCost > max_cost_usd) {
     return {
       content: [{
         type: 'text',
         text: JSON.stringify({
-          status: 'COST_EXCEEDED',
           actor_id,
           requested_max: max_cost_usd,
           estimated_cost: estimatedCost,
@@ -743,14 +722,14 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
       isError: true
     };
   }
-  
+
   await Actor.charge({ eventName: 'call-actor', count: 1 });
-  
+
   const run = await Actor.start(actor_id, input);
   const startTime = Date.now();
   const timeout = timeout_secs * 1000;
   let pollInterval = 2000;
-  
+
   while (true) {
     if (Date.now() - startTime > timeout) {
       return {
@@ -765,18 +744,23 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
         }]
       };
     }
-    
+
     const runInfo = await Actor.apifyClient.run(run.id).get();
+    
+    if (!runInfo) throw new Error('Failed to retrieve run information');
+    
     if (runInfo.status === 'SUCCEEDED') {
       const items: any[] = [];
       let offset = 0;
+      
       while (true) {
-        const result = await Actor.apifyClient.dataset(runInfo.defaultDatasetId).listItems({ offset, limit: 1000 });
+        // FIX: Non-null assertion for defaultDatasetId
+        const result = await Actor.apifyClient.dataset(runInfo.defaultDatasetId!).listItems({ offset, limit: 1000 });
         items.push(...result.items);
         offset += result.items.length;
         if (result.items.length < 1000) break;
       }
-      
+
       return {
         content: [{
           type: 'text',
@@ -791,27 +775,26 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
         }]
       };
     }
-    
-    if (['FAILED', 'ABORTED'].includes(runInfo.status)) {
+
+    if (['FAILED', 'ABORTED'].includes(runInfo.status!)) {
       throw new Error(`Actor failed: ${runInfo.statusMessage}`);
     }
-    
+
     await new Promise(r => setTimeout(r, pollInterval));
     pollInterval = Math.min(pollInterval * 1.5, 15000);
   }
 }
 
 // ==========================================
-// SERVER SETUP
+// MAIN
 // ==========================================
 
 async function main() {
-  const transportType = process.env.MCP_TRANSPORT || 'stdio';
-  
-  if (transportType === 'sse') {
+  if (process.env.TRANSPORT === 'sse') {
     const port = parseInt(process.env.PORT || '3000');
     const http = await import('http');
     const express = await import('express');
+    
     const app = express.default();
     const activeTransports = new Map<string, SSEServerTransport>();
 
@@ -819,6 +802,7 @@ async function main() {
       const transport = new SSEServerTransport('/messages', res);
       const sessionId = transport.sessionId;
       activeTransports.set(sessionId, transport);
+
       res.on('close', () => activeTransports.delete(sessionId));
       await mcpServer.connect(transport);
       console.log(`[Forage] Connected: ${sessionId}`);

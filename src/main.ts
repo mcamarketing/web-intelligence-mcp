@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Web Intelligence MCP Server for Apify
- */
-
 import { Actor } from 'apify';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -15,7 +11,6 @@ import {
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-// Initialize Actor
 await Actor.init();
 
 const TOOLS: Tool[] = [
@@ -178,7 +173,6 @@ async function handleScrapePage({ url }: { url: string }) {
   let title: string;
 
   if (jinaKey) {
-    // FIX: Use https:// protocol for Jina AI to preserve SSL
     const cleanUrl = url.replace(/^https?:\/\//, '');
     const res = await axios.get(`https://r.jina.ai/https://${cleanUrl}`, {
       headers: { Authorization: `Bearer ${jinaKey}` },
@@ -292,7 +286,6 @@ async function handleFindLeads({
     }
     
     if (runInfo.status === 'SUCCEEDED') {
-      // FIX: Paginate through all dataset items (handles >250 leads)
       const allItems: any[] = [];
       let offset = 0;
       const pageLimit = 250;

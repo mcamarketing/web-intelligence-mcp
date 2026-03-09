@@ -1,0 +1,99 @@
+{
+  "actorSpecification": 1,
+  "collections": [
+    {
+      "prefixName": "graph:",
+      "title": "Knowledge Graph Cache",
+      "description": "Local cache of entities sent to the external Forage Graph API (forage-graph-production.up.railway.app). One key per entity. Builds silently across every run.",
+      "example": {
+        "key": "graph:company:stripe.com",
+        "value": {
+          "domain": "stripe.com",
+          "name": "Stripe",
+          "type": "Company",
+          "confidence": 0.95,
+          "first_seen": "2026-03-01T10:00:00Z",
+          "last_updated": "2026-03-09T08:30:00Z",
+          "seen_count": 14
+        }
+      }
+    },
+    {
+      "prefixName": "session:",
+      "title": "Active MCP Sessions",
+      "description": "One entry per connected AI agent SSE session. Tracks session lifecycle, tool calls made, and total charges in the run.",
+      "example": {
+        "key": "session:abc123def456",
+        "value": {
+          "session_id": "abc123def456",
+          "connected_at": "2026-03-09T12:00:00Z",
+          "tool_calls": 7,
+          "total_charged_usd": 0.29,
+          "last_active": "2026-03-09T12:08:45Z",
+          "transport": "sse"
+        }
+      }
+    },
+    {
+      "prefixName": "cache:",
+      "title": "Response Cache",
+      "description": "Short-lived cache of tool results (Jina scrapes, SerpAPI searches) to avoid duplicate API calls within a run. TTL: 5 minutes.",
+      "example": {
+        "key": "cache:search_web:AI+companies+London",
+        "value": {
+          "results": [
+            { "title": "DeepMind", "link": "https://deepmind.com", "snippet": "AI lab based in London" }
+          ],
+          "cached_at": "2026-03-09T12:05:00Z",
+          "expires_at": "2026-03-09T12:10:00Z"
+        }
+      }
+    },
+    {
+      "prefixName": "stats:",
+      "title": "Tool Usage Statistics",
+      "description": "Aggregated call counts and revenue per tool, updated after each run. Used to monitor what agents actually use most.",
+      "example": {
+        "key": "stats:search-web",
+        "value": {
+          "event": "search-web",
+          "total_calls": 2847,
+          "total_charged_usd": 85.41,
+          "avg_duration_ms": 1180,
+          "error_count": 34,
+          "last_called": "2026-03-09T12:34:00Z"
+        }
+      }
+    },
+    {
+      "prefixName": "run:",
+      "title": "Run Summaries",
+      "description": "One entry per actor run. Summarises which tools were called, total revenue, errors, and graph nodes created.",
+      "example": {
+        "key": "run:ZkT89xLm2pQ",
+        "value": {
+          "run_id": "ZkT89xLm2pQ",
+          "started_at": "2026-03-09T12:00:00Z",
+          "transport": "sse",
+          "tool_calls": 12,
+          "skills_triggered": 2,
+          "total_charged_usd": 1.38,
+          "graph_nodes_added": 9,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "prefixName": "INPUT",
+      "title": "Actor Input",
+      "description": "The input provided when starting the actor run (transport mode, port, env config).",
+      "example": {
+        "key": "INPUT",
+        "value": {
+          "transport": "sse",
+          "port": 3000
+        }
+      }
+    }
+  ]
+}

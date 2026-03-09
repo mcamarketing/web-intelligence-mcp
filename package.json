@@ -2,6 +2,7 @@
   "name": "web-intelligence-mcp",
   "version": "1.0.0",
   "description": "Forage MCP Server for AI Agents",
+  "type": "module",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",

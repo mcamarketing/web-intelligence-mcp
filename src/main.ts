@@ -44,7 +44,7 @@ const PRICING = {
   SKILL_PROSPECT_COMPANY: { event: 'skill-prospect-company', charge: 0.75 },
   SKILL_OUTBOUND_LIST: { event: 'skill-outbound-list', charge: 3.50 },
   SKILL_LOCAL_MARKET_MAP: { event: 'skill-local-market-map', charge: 0.80 },
-  SKILL_COMPETITOR_INTEL: { event: 'skill-competitor-intel', charge: 0.60 },
+  SKILL_COMPETITOR_INTEL: { event: 'skill-competitor-intel', charge: 0.80 },
   SKILL_DECISION_MAKER: { event: 'skill-decision-maker', charge: 1.00 },
 };
 
@@ -1145,28 +1145,105 @@ async function handleSkillLocalMarketMap({ business_type, location }: any) {
 async function handleSkillCompetitorIntel({ competitor_url, focus = 'both' }: any) {
   await Actor.charge({ eventName: PRICING.SKILL_COMPETITOR_INTEL.event, count: 1 });
 
-  const pages = [competitor_url];
-  if (focus === 'pricing' || focus === 'both') pages.push(`${competitor_url.replace(/\/$/, '')}/pricing`);
-  if (focus === 'features' || focus === 'both') pages.push(`${competitor_url.replace(/\/$/, '')}/features`);
+  const jinaKey = process.env.JINA_AI_KEY;
+  const serpKey = process.env.SERPAPI_KEY;
+
+  // Extract competitor name from URL for search queries
+  const competitorName = competitor_url
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    .split('.')[0];
+
+  // Step 1: Search for pricing and features pages — don't guess URLs
+  const searchQueries: string[] = [];
+  if (focus === 'pricing' || focus === 'both') {
+    searchQueries.push(`${competitorName} pricing plans`);
+  }
+  if (focus === 'features' || focus === 'both') {
+    searchQueries.push(`${competitorName} features`);
+  }
+  searchQueries.push(`${competitorName} reviews site:g2.com OR site:capterra.com OR site:trustpilot.com`);
+
+  const searchResults: Record<string, string[]> = {};
+  if (serpKey) {
+    await Promise.allSettled(
+      searchQueries.map(async (q) => {
+        const res = await axios.get('https://serpapi.com/search', {
+          params: { q, api_key: serpKey, engine: 'google', num: 3 },
+          timeout: 15000,
+        });
+        searchResults[q] = res.data.organic_results?.map((r: any) => r.link) || [];
+      })
+    );
+  }
+
+  // Step 2: Scrape homepage + discovered pages + review sites
+  const urlsToScrape = new Set<string>([competitor_url]);
+
+  // Add discovered URLs from search
+  Object.values(searchResults).forEach(links => {
+    links.slice(0, 2).forEach(link => urlsToScrape.add(link));
+  });
+
+  // Fallback: try standard paths if search didn't find specific pages
+  if (focus === 'pricing' || focus === 'both') {
+    urlsToScrape.add(`${competitor_url.replace(/\/$/, '')}/pricing`);
+  }
+  if (focus === 'features' || focus === 'both') {
+    urlsToScrape.add(`${competitor_url.replace(/\/$/, '')}/features`);
+  }
 
   const scraped = await Promise.allSettled(
-    pages.map(url =>
-      axios.get(`https://r.jina.ai/${url}`, {
-        headers: { Authorization: `Bearer ${process.env.JINA_AI_KEY}` },
-        timeout: 15000,
-      }).then(r => ({ url, content: r.data.substring(0, 3000) }))
-    )
+    Array.from(urlsToScrape).slice(0, 8).map(async (url) => {
+      try {
+        if (jinaKey) {
+          const res = await axios.get(`https://r.jina.ai/${url}`, {
+            headers: { Authorization: `Bearer ${jinaKey}` },
+            timeout: 15000,
+          });
+          return { url, content: res.data.substring(0, 2500), success: true };
+        } else {
+          const res = await axios.get(url, { timeout: 10000 });
+          const $ = cheerio.load(res.data);
+          return { url, content: $('body').text().replace(/\s+/g, ' ').substring(0, 2500), success: true };
+        }
+      } catch {
+        return { url, content: null, success: false };
+      }
+    })
   );
 
   const pages_data = scraped
-    .filter(r => r.status === 'fulfilled')
+    .filter(r => r.status === 'fulfilled' && (r.value as any).success)
     .map((r: any) => r.value);
+
+  // Step 3: Categorise pages
+  const homepagePage = pages_data.find(p => p.url === competitor_url);
+  const pricingPages = pages_data.filter(p =>
+    p.url.includes('pricing') || p.url.includes('plans') || p.url.includes('cost')
+  );
+  const featurePages = pages_data.filter(p =>
+    p.url.includes('features') || p.url.includes('product') || p.url.includes('solutions')
+  );
+  const reviewPages = pages_data.filter(p =>
+    p.url.includes('g2.com') || p.url.includes('capterra') || p.url.includes('trustpilot')
+  );
 
   const result = {
     competitor: competitor_url,
+    competitor_name: competitorName,
     focus,
-    pages_scraped: pages_data.length,
-    data: pages_data,
+    summary: {
+      homepage: homepagePage?.content?.substring(0, 500) || null,
+      pricing_pages_found: pricingPages.length,
+      feature_pages_found: featurePages.length,
+      review_pages_found: reviewPages.length,
+    },
+    pricing_data: pricingPages.map(p => ({ url: p.url, content: p.content })),
+    feature_data: featurePages.map(p => ({ url: p.url, content: p.content })),
+    review_data: reviewPages.map(p => ({ url: p.url, content: p.content })),
+    all_pages_scraped: pages_data.length,
     cost_usd: PRICING.SKILL_COMPETITOR_INTEL.charge,
   };
 

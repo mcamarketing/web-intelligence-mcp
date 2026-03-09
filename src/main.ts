@@ -62,7 +62,7 @@ const TOOLS = [
   { name: 'search_web', description: 'Google Search. Cost: $0.03/call', inputSchema: { type: 'object', properties: { query: { type: 'string' }, num_results: { type: 'number', default: 10 } }, required: ['query'] } },
   { name: 'scrape_page', description: 'Extract clean text from any URL. Cost: $0.07/call', inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } },
   { name: 'get_company_info', description: 'Unified company intelligence. Cost: $0.08/call', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, find_emails: { type: 'boolean', default: true } }, required: ['domain'] } },
-  { name: 'find_emails', description: 'Email discovery via Hunter.io. Cost: $0.10/call', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['domain'] } },
+  { name: 'find_emails', description: 'Email discovery via Apollo.io. Cost: $0.10/call', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['domain'] } },
   { name: 'find_local_leads', description: 'Google Maps lead gen. Cost: $0.15/call', inputSchema: { type: 'object', properties: { keyword: { type: 'string' }, location: { type: 'string' }, radius: { type: 'number', default: 5000 }, max_results: { type: 'number', default: 20 } }, required: ['keyword', 'location'] } },
   { name: 'find_leads', description: 'B2B leads via Apify. Cost: $0.25 per 100 leads', inputSchema: { type: 'object', properties: { job_title: { type: 'string' }, location: { type: 'string' }, industry: { type: 'string' }, company_size: { type: 'string' }, keywords: { type: 'string' }, company_website: { type: 'string' }, num_leads: { type: 'number', default: 100 }, email_status: { type: 'string', default: 'verified' } }, required: ['job_title'] } },
   { name: 'query_knowledge', description: 'Query accumulated intelligence. Cost: $0.02/query', inputSchema: { type: 'object', properties: { question: { type: 'string' }, entity_type: { type: 'string', enum: ['Company', 'Person', 'Location', 'Industry', 'any'], default: 'any' }, min_confidence: { type: 'number', default: 0.7 } }, required: ['question'] } },
@@ -98,7 +98,7 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS 
 
 mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  console.log(`[Forage] ${name}`, args);
+  console.error(`[Forage] ${name}`, args);
   try {
     switch (name) {
       case 'search_web': return await handleSearchWeb(args as any);
@@ -200,8 +200,23 @@ async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: st
     websiteData = { title: lines[0]?.replace(/^Title: /, ''), description: lines[1]?.replace(/^Content: /, '').substring(0, 500) };
   } catch (e) { websiteData = { error: 'Could not fetch website' }; }
   if (find_emails) {
-    try { emailData = await axios.get('https://api.hunter.io/v2/domain-search', { params: { domain: cleanDomain, api_key: process.env.HUNTER_API_KEY }, timeout: 15000 }).then(r => r.data.data); }
-    catch (e) { emailData = { error: 'Email search failed' }; }
+    try {
+      // Apollo.io People Search — free, no credits consumed
+      const apolloKey = process.env.APOLLO_API_KEY;
+      if (apolloKey) {
+        const apolloRes = await axios.post('https://api.apollo.io/v1/mixed_people/search',
+          { q_organization_domains: cleanDomain, page: 1, per_page: 10 },
+          { headers: { 'x-api-key': apolloKey, 'Content-Type': 'application/json' }, timeout: 15000 }
+        );
+        emailData = apolloRes.data?.people?.map((p: any) => ({
+          name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+          email: p.email,
+          title: p.title,
+          linkedin: p.linkedin_url,
+          seniority: p.seniority,
+        })) || [];
+      }
+    } catch (e) { emailData = { error: 'Email search failed' }; }
   }
   graphClient.ingest('get_company_info', { domain: cleanDomain, website: websiteData, email_intelligence: emailData });
   return { content: [{ type: 'text', text: JSON.stringify({ domain: cleanDomain, website: websiteData, email_intelligence: emailData, cost_usd: PRICING.GET_COMPANY_INFO.charge, timestamp: new Date().toISOString() }, null, 2) }] };
@@ -209,12 +224,25 @@ async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: st
 
 async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?: number }) {
   await Actor.charge({ eventName: PRICING.FIND_EMAILS.event, count: 1 });
-  const key = process.env.HUNTER_API_KEY;
-  if (!key) throw new Error('HUNTER_API_KEY not configured');
-  const { data } = await axios.get('https://api.hunter.io/v2/domain-search', { params: { domain, api_key: key, limit }, timeout: 15000 });
-  const emails = data.data?.emails?.map((e: any) => ({ email: e.value, type: e.type, confidence: e.confidence, first_name: e.first_name, last_name: e.last_name, position: e.position, seniority: e.seniority, department: e.department, linkedin: e.linkedin, phone_number: e.phone_number })) || [];
-  graphClient.ingest('find_emails', { domain, organization: data.data?.organization, pattern: data.data?.pattern, emails });
-  return { content: [{ type: 'text', text: JSON.stringify({ domain, organization: data.data?.organization, emails_found: emails.length, pattern: data.data?.pattern, emails, cost_usd: PRICING.FIND_EMAILS.charge }, null, 2) }] };
+  const apolloKey = process.env.APOLLO_API_KEY;
+  if (!apolloKey) throw new Error('APOLLO_API_KEY not configured');
+  const { data } = await axios.post('https://api.apollo.io/v1/mixed_people/search',
+    { q_organization_domains: domain, page: 1, per_page: Math.min(limit, 25) },
+    { headers: { 'x-api-key': apolloKey, 'Content-Type': 'application/json' }, timeout: 15000 }
+  );
+  const emails = data.people?.map((p: any) => ({
+    name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+    email: p.email,
+    title: p.title,
+    seniority: p.seniority,
+    department: p.departments?.[0],
+    linkedin: p.linkedin_url,
+    city: p.city,
+    state: p.state,
+    country: p.country,
+  })) || [];
+  graphClient.ingest('find_emails', { domain, emails });
+  return { content: [{ type: 'text', text: JSON.stringify({ domain, emails_found: emails.length, emails, cost_usd: PRICING.FIND_EMAILS.charge }, null, 2) }] };
 }
 
 async function handleFindLocalLeads({ keyword, location, radius = 5000, max_results = 20 }: any) {
@@ -356,14 +384,19 @@ async function handleCallActor({ actor_id, input, timeout_secs = 120, max_cost_u
 async function handleSkillCompanyDossier({ domain }: { domain: string }) {
   await Actor.charge({ eventName: PRICING.SKILL_COMPANY_DOSSIER.event, count: 1 });
   const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const apolloKey = process.env.APOLLO_API_KEY;
   const [websiteRaw, emailsRaw] = await Promise.allSettled([
     axios.get(`https://r.jina.ai/https://${cleanDomain}`, { headers: { Authorization: `Bearer ${process.env.JINA_AI_KEY}` }, timeout: 15000 }),
-    axios.get('https://api.hunter.io/v2/domain-search', { params: { domain: cleanDomain, api_key: process.env.HUNTER_API_KEY, limit: 10 }, timeout: 15000 }),
+    apolloKey
+      ? axios.post('https://api.apollo.io/v1/mixed_people/search',
+          { q_organization_domains: cleanDomain, page: 1, per_page: 10 },
+          { headers: { 'x-api-key': apolloKey, 'Content-Type': 'application/json' }, timeout: 15000 })
+      : Promise.reject('No Apollo key'),
   ]);
   const website = websiteRaw.status === 'fulfilled' ? { title: websiteRaw.value.data.split('\n')[0]?.replace(/^Title: /, ''), summary: websiteRaw.value.data.split('\n').slice(1).join(' ').substring(0, 800) } : { error: 'Could not fetch' };
-  const emailData = emailsRaw.status === 'fulfilled' ? emailsRaw.value.data.data : null;
-  const contacts = emailData?.emails?.slice(0, 10).map((e: any) => ({ name: `${e.first_name || ''} ${e.last_name || ''}`.trim(), email: e.value, title: e.position, seniority: e.seniority, department: e.department, confidence: e.confidence, linkedin: e.linkedin })) || [];
-  const dossier = { domain: cleanDomain, company_name: emailData?.organization || (website as any).title, website_summary: website, email_pattern: emailData?.pattern, total_emails_found: emailData?.emails?.length || 0, key_contacts: contacts, cost_usd: PRICING.SKILL_COMPANY_DOSSIER.charge, generated_at: new Date().toISOString() };
+  const emailData = emailsRaw.status === 'fulfilled' ? emailsRaw.value.data.people : null;
+  const contacts = emailData?.slice(0, 10).map((p: any) => ({ name: `${p.first_name || ''} ${p.last_name || ''}`.trim(), email: p.email, title: p.title, seniority: p.seniority, department: p.departments?.[0], linkedin: p.linkedin_url })) || [];
+  const dossier = { domain: cleanDomain, website_summary: website, key_contacts: contacts, cost_usd: PRICING.SKILL_COMPANY_DOSSIER.charge, generated_at: new Date().toISOString() };
   graphClient.ingest('skill_company_dossier', dossier);
   return { content: [{ type: 'text', text: JSON.stringify(dossier, null, 2) }] };
 }
@@ -371,12 +404,18 @@ async function handleSkillCompanyDossier({ domain }: { domain: string }) {
 async function handleSkillProspectCompany({ domain, seniority = 'senior,director,vp,c_suite' }: any) {
   await Actor.charge({ eventName: PRICING.SKILL_PROSPECT_COMPANY.event, count: 1 });
   const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  const key = process.env.HUNTER_API_KEY;
-  if (!key) throw new Error('HUNTER_API_KEY not configured');
-  const { data } = await axios.get('https://api.hunter.io/v2/domain-search', { params: { domain: cleanDomain, api_key: key, limit: 20 }, timeout: 15000 });
+  const apolloKey = process.env.APOLLO_API_KEY;
+  if (!apolloKey) throw new Error('APOLLO_API_KEY not configured');
+  const { data } = await axios.post('https://api.apollo.io/v1/mixed_people/search',
+    { q_organization_domains: cleanDomain, page: 1, per_page: 25 },
+    { headers: { 'x-api-key': apolloKey, 'Content-Type': 'application/json' }, timeout: 15000 }
+  );
   const seniorityLevels = seniority.split(',').map((s: string) => s.trim().toLowerCase());
-  const decisionMakers = (data.data?.emails || []).filter((e: any) => !e.seniority || seniorityLevels.includes(e.seniority?.toLowerCase())).slice(0, 15).map((e: any) => ({ name: `${e.first_name || ''} ${e.last_name || ''}`.trim(), email: e.value, title: e.position, seniority: e.seniority, department: e.department, confidence: e.confidence, linkedin: e.linkedin, phone: e.phone_number }));
-  const result = { domain: cleanDomain, company: data.data?.organization, decision_makers_found: decisionMakers.length, email_pattern: data.data?.pattern, contacts: decisionMakers, cost_usd: PRICING.SKILL_PROSPECT_COMPANY.charge };
+  const decisionMakers = (data.people || [])
+    .filter((p: any) => !p.seniority || seniorityLevels.includes(p.seniority?.toLowerCase()))
+    .slice(0, 15)
+    .map((p: any) => ({ name: `${p.first_name || ''} ${p.last_name || ''}`.trim(), email: p.email, title: p.title, seniority: p.seniority, department: p.departments?.[0], linkedin: p.linkedin_url }));
+  const result = { domain: cleanDomain, decision_makers_found: decisionMakers.length, contacts: decisionMakers, cost_usd: PRICING.SKILL_PROSPECT_COMPANY.charge };
   graphClient.ingest('skill_prospect_company', result);
   return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
 }
@@ -452,12 +491,19 @@ async function handleSkillCompetitorIntel({ competitor_url, focus = 'both' }: an
 async function handleSkillDecisionMakerFinder({ domain, departments = 'sales,marketing,engineering,executive' }: any) {
   await Actor.charge({ eventName: PRICING.SKILL_DECISION_MAKER.event, count: 1 });
   const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  const key = process.env.HUNTER_API_KEY;
-  if (!key) throw new Error('HUNTER_API_KEY not configured');
+  const apolloKey = process.env.APOLLO_API_KEY;
+  if (!apolloKey) throw new Error('APOLLO_API_KEY not configured');
   const deptList = departments.split(',').map((d: string) => d.trim().toLowerCase());
-  const { data } = await axios.get('https://api.hunter.io/v2/domain-search', { params: { domain: cleanDomain, api_key: key, limit: 50 }, timeout: 15000 });
-  const contacts = (data.data?.emails || []).filter((e: any) => { if (!e.department) return true; return deptList.some((d: string) => e.department?.toLowerCase().includes(d)); }).sort((a: any, b: any) => { const s = ['c_suite', 'vp', 'director', 'senior', 'junior']; return s.indexOf(a.seniority) - s.indexOf(b.seniority); }).slice(0, 20).map((e: any) => ({ name: `${e.first_name || ''} ${e.last_name || ''}`.trim(), email: e.value, title: e.position, seniority: e.seniority, department: e.department, confidence: e.confidence, linkedin: e.linkedin, phone: e.phone_number }));
-  const result = { domain: cleanDomain, company: data.data?.organization, contacts_found: contacts.length, contacts, cost_usd: PRICING.SKILL_DECISION_MAKER.charge };
+  const { data } = await axios.post('https://api.apollo.io/v1/mixed_people/search',
+    { q_organization_domains: cleanDomain, page: 1, per_page: 50 },
+    { headers: { 'x-api-key': apolloKey, 'Content-Type': 'application/json' }, timeout: 15000 }
+  );
+  const contacts = (data.people || [])
+    .filter((p: any) => { if (!p.departments?.length) return true; return deptList.some((d: string) => p.departments.some((dept: string) => dept.toLowerCase().includes(d))); })
+    .sort((a: any, b: any) => { const s = ['c_suite', 'vp', 'director', 'senior', 'junior']; return s.indexOf(a.seniority) - s.indexOf(b.seniority); })
+    .slice(0, 20)
+    .map((p: any) => ({ name: `${p.first_name || ''} ${p.last_name || ''}`.trim(), email: p.email, title: p.title, seniority: p.seniority, department: p.departments?.[0], linkedin: p.linkedin_url }));
+  const result = { domain: cleanDomain, contacts_found: contacts.length, contacts, cost_usd: PRICING.SKILL_DECISION_MAKER.charge };
   graphClient.ingest('skill_decision_maker_finder', result);
   return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
 }
@@ -578,30 +624,40 @@ async function handleSkillMarketMap({ market, max_competitors = 10 }: any) {
 }
 
 // ==========================================
-// MAIN
+// MAIN — Fixed for Apify Standby Mode
 // ==========================================
 
 async function main() {
-  if (process.env.TRANSPORT === 'sse') {
-    const port = parseInt(process.env.PORT || '3000');
+  const standbyPort = process.env.ACTOR_STANDBY_PORT;
+  const useSSE = standbyPort || process.env.TRANSPORT === 'sse';
+
+  if (useSSE) {
+    const port = parseInt(standbyPort || process.env.PORT || '3000');
     const http = await import('http');
     const express = await import('express');
     const app = express.default();
     const activeTransports = new Map<string, SSEServerTransport>();
-    app.get('/sse', async (req, res) => {
+
+    app.get('/sse', async (req: any, res: any) => {
       const transport = new SSEServerTransport('/messages', res);
       const sessionId = transport.sessionId;
       activeTransports.set(sessionId, transport);
       res.on('close', () => activeTransports.delete(sessionId));
       await mcpServer.connect(transport);
-      console.log(`[Forage] Connected: ${sessionId}`);
+      console.error(`[Forage] Connected: ${sessionId}`);
     });
-    app.post('/messages', express.default.json(), async (req, res) => {
+
+    app.post('/messages', express.default.json(), async (req: any, res: any) => {
       const sessionId = req.query.sessionId as string;
-      if (!sessionId || !activeTransports.has(sessionId)) return res.status(400).json({ error: 'Invalid sessionId' });
+      if (!sessionId || !activeTransports.has(sessionId))
+        return res.status(400).json({ error: 'Invalid sessionId' });
       await activeTransports.get(sessionId)!.handlePostMessage(req, res);
     });
-    http.createServer(app).listen(port, () => console.log(`[Forage] Gateway on port ${port}`));
+
+    app.get('/health', (_req: any, res: any) => res.json({ status: 'ok', tools: TOOLS.length }));
+
+    http.createServer(app).listen(port, () =>
+      console.error(`[Forage] Gateway on port ${port} (standby: ${!!standbyPort})`));
   } else {
     await mcpServer.connect(new StdioServerTransport());
     console.error('[Forage] Gateway on stdio');

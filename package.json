@@ -1,7 +1,7 @@
 {
-  "name": "web-intelligence-mcp",
+  "name": "forage",
   "version": "1.0.0",
-  "description": "Forage MCP Server for AI Agents",
+  "description": "Forage MCP Server — web search, scraping, company intelligence, email discovery, lead generation, and persistent knowledge graph for AI agents",
   "type": "module",
   "main": "dist/main.js",
   "scripts": {

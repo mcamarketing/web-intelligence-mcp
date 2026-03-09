@@ -1,0 +1,126 @@
+{
+  "actorSpecification": 1,
+  "fields": [
+    {
+      "name": "tool",
+      "type": "string",
+      "description": "The MCP tool or Skill that was invoked",
+      "example": "skill_company_dossier"
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "description": "Tool category: core | knowledge | gateway | skill",
+      "example": "skill"
+    },
+    {
+      "name": "charge_event",
+      "type": "string",
+      "description": "Apify billing event name fired for this call",
+      "example": "skill-company-dossier"
+    },
+    {
+      "name": "charge_usd",
+      "type": "number",
+      "description": "Amount charged in USD for this call",
+      "example": 0.50
+    },
+    {
+      "name": "input",
+      "type": "object",
+      "description": "Arguments passed to the tool",
+      "example": { "domain": "stripe.com" }
+    },
+    {
+      "name": "result",
+      "type": "object",
+      "description": "Full structured output returned by the tool. Shape varies by tool — see views below.",
+      "example": {
+        "domain": "stripe.com",
+        "company_name": "Stripe",
+        "total_emails_found": 8,
+        "key_contacts": [
+          {
+            "name": "John Smith",
+            "email": "john@stripe.com",
+            "title": "VP Engineering",
+            "seniority": "vp",
+            "confidence": 94
+          }
+        ]
+      }
+    },
+    {
+      "name": "graph_ingested",
+      "type": "boolean",
+      "description": "Whether result was sent to the Forage knowledge graph at GRAPH_API_URL",
+      "example": true
+    },
+    {
+      "name": "duration_ms",
+      "type": "integer",
+      "description": "Wall-clock time for the tool call in milliseconds",
+      "example": 2140
+    },
+    {
+      "name": "error",
+      "type": "string",
+      "description": "Error message if the call failed, null on success",
+      "example": null
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "description": "ISO 8601 UTC timestamp of the tool call",
+      "example": "2026-03-09T12:34:56.789Z"
+    }
+  ],
+  "views": {
+    "overview": {
+      "title": "All Tool Calls",
+      "transformation": {
+        "fields": ["timestamp", "tool", "category", "charge_usd", "duration_ms", "graph_ingested", "error"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "timestamp":      { "label": "Time" },
+          "tool":           { "label": "Tool" },
+          "category":       { "label": "Type" },
+          "charge_usd":     { "label": "Cost ($)" },
+          "duration_ms":    { "label": "ms" },
+          "graph_ingested": { "label": "Graph ✓" },
+          "error":          { "label": "Error" }
+        }
+      }
+    },
+    "leads": {
+      "title": "Leads & Companies",
+      "transformation": {
+        "fields": ["timestamp", "tool", "result.domain", "result.total_leads", "result.verified_emails", "result.contacts_found", "result.total_found", "charge_usd"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "timestamp":               { "label": "Time" },
+          "tool":                    { "label": "Tool" },
+          "result.domain":           { "label": "Domain" },
+          "result.total_leads":      { "label": "Leads" },
+          "result.verified_emails":  { "label": "Verified Emails" },
+          "result.contacts_found":   { "label": "Contacts" },
+          "result.total_found":      { "label": "Businesses" },
+          "charge_usd":              { "label": "Cost ($)" }
+        }
+      }
+    },
+    "skills": {
+      "title": "Skill Executions",
+      "transformation": {
+        "fields": ["timestamp", "tool", "charge_usd", "duration_ms", "graph_ingested", "error"]
+      },
+      "display": {
+        "component": "table"
+      }
+    }
+  }
+}

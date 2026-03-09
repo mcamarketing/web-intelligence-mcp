@@ -1,0 +1,235 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Forage MCP Server",
+    "version": "1.0.0",
+    "description": "MCP server for AI agents. Connect via SSE at /sse, then send tool calls to /messages. Tools include web search, page scraping, company intelligence, email discovery, lead generation, and a persistent knowledge graph.\n\nAll tools are billed per call via Apify's pay-per-event system. See tool descriptions for individual pricing."
+  },
+  "servers": [
+    {
+      "url": "https://{actorRunHostname}",
+      "description": "Live actor run (replace {actorRunHostname} with the URL shown in the Apify run detail)",
+      "variables": {
+        "actorRunHostname": {
+          "default": "localhost:3000",
+          "description": "Hostname of the live actor run"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/sse": {
+      "get": {
+        "operationId": "connectSSE",
+        "summary": "Open an MCP SSE session",
+        "description": "Establishes a Server-Sent Events connection. The server immediately returns a `sessionId` in the first SSE event. Keep this connection open for the duration of your session — all tool responses are streamed back here.",
+        "responses": {
+          "200": {
+            "description": "SSE stream opened. First event contains the session ID.",
+            "headers": {
+              "Content-Type": {
+                "schema": { "type": "string", "example": "text/event-stream" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string", "example": "no-cache" }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events stream in MCP format",
+                  "example": "data: {\"jsonrpc\":\"2.0\",\"method\":\"endpoint\",\"params\":{\"uri\":\"/messages?sessionId=abc123\"}}\n\n"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages": {
+      "post": {
+        "operationId": "sendMessage",
+        "summary": "Send an MCP message to an active session",
+        "description": "Send JSON-RPC 2.0 messages to invoke tools or list capabilities. Requires the `sessionId` returned when the SSE connection was opened.",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "query",
+            "required": true,
+            "description": "Session ID received from the /sse connection event",
+            "schema": { "type": "string", "example": "abc123def456" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  { "$ref": "#/components/schemas/ListToolsRequest" },
+                  { "$ref": "#/components/schemas/CallToolRequest" }
+                ]
+              },
+              "examples": {
+                "list_tools": {
+                  "summary": "List all available tools",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/list",
+                    "params": {}
+                  }
+                },
+                "search_web": {
+                  "summary": "Run a web search ($0.03)",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "search_web",
+                      "arguments": { "query": "Stripe competitors 2026", "num_results": 10 }
+                    }
+                  }
+                },
+                "skill_company_dossier": {
+                  "summary": "Run a Company Dossier Skill ($0.50)",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "skill_company_dossier",
+                      "arguments": { "domain": "stripe.com" }
+                    }
+                  }
+                },
+                "skill_outbound_list": {
+                  "summary": "Run an Outbound List Builder Skill ($3.50)",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 4,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "skill_outbound_list",
+                      "arguments": {
+                        "job_title": "Head of Sales",
+                        "location": "United States",
+                        "industry": "SaaS",
+                        "company_size": "51-200"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Message accepted. The JSON-RPC response is streamed asynchronously back over the /sse connection.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid session ID or malformed request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "description": "Returns server status. Does not require a session. Use to verify the actor is live before connecting.",
+        "responses": {
+          "200": {
+            "description": "Server is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "version": { "type": "string", "example": "1.0.0" },
+                    "transport": { "type": "string", "example": "sse" },
+                    "graph_connected": { "type": "boolean", "example": true },
+                    "active_sessions": { "type": "integer", "example": 2 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ListToolsRequest": {
+        "type": "object",
+        "required": ["jsonrpc", "method"],
+        "properties": {
+          "jsonrpc": { "type": "string", "enum": ["2.0"] },
+          "id": { "type": "integer" },
+          "method": { "type": "string", "enum": ["tools/list"] },
+          "params": { "type": "object" }
+        }
+      },
+      "CallToolRequest": {
+        "type": "object",
+        "required": ["jsonrpc", "method", "params"],
+        "properties": {
+          "jsonrpc": { "type": "string", "enum": ["2.0"] },
+          "id": { "type": "integer" },
+          "method": { "type": "string", "enum": ["tools/call"] },
+          "params": {
+            "type": "object",
+            "required": ["name", "arguments"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Tool name",
+                "enum": [
+                  "search_web", "scrape_page", "get_company_info", "find_emails",
+                  "find_local_leads", "find_leads",
+                  "query_knowledge", "enrich_entity", "find_connections", "get_graph_stats",
+                  "list_verified_actors", "get_actor_schema", "call_actor",
+                  "skill_company_dossier", "skill_prospect_company", "skill_outbound_list",
+                  "skill_local_market_map", "skill_competitor_intel", "skill_decision_maker_finder",
+                  "skill_competitor_ads", "skill_job_signals", "skill_tech_stack",
+                  "skill_funding_intel", "skill_social_proof", "skill_market_map"
+                ]
+              },
+              "arguments": {
+                "type": "object",
+                "description": "Tool-specific arguments. See tool descriptions for required fields and pricing."
+              }
+            }
+          }
+        }
+      },
+      "AcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": { "type": "boolean", "example": true }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "Invalid sessionId" }
+        }
+      }
+    }
+  }
+}

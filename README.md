@@ -1,266 +1,183 @@
-# Web Intelligence MCP Server
+# Forage — MCP Server for AI Agents
 
-> **Real-time web intelligence for AI agents. Monetized on Apify.**
+Give your AI agent the tools to find, research, and understand the world — then remember what it learns.
 
-[![Apify Actor](https://img.shields.io/badge/Apify-Actor-blue)](https://apify.com)
-[![MCP](https://img.shields.io/badge/MCP-Protocol-green)](https://modelcontextprotocol.io)
+Forage is a **Model Context Protocol (MCP) server** that runs on Apify and gives agents real-time web intelligence: live search, page scraping, company intelligence, email discovery, lead generation, and a persistent knowledge graph that grows smarter with every call.
 
-## What This Does
+Connect once. Your agent gets 25 tools and 12 one-trigger Skills. No API keys, no accounts, no setup. Pay only for what it uses.
 
-A production-ready MCP server that gives AI agents real-time web capabilities:
+---
 
-| Tool | What It Does | Price |
-|------|--------------|-------|
-| `search_web` | Live Google/Bing search results | $0.02/call |
-| `scrape_page` | Clean markdown from any URL | $0.05/call |
-| `find_leads` | Google Maps business data | $0.10/call |
-| `get_company_info` | Tech stack, employees, contacts | $0.15/call |
+## Why Forage
 
-**Why Agents Need This:**
-- Claude/GPT have knowledge cutoffs
-- Agents need current prices, news, company info
-- Every serious agent workflow needs real-time data
+Most AI agents are blind to the current world. Their knowledge cuts off months ago, they can't reach URLs, and they forget everything between sessions.
 
-## Quick Start
+Forage fixes all three:
 
-### For AI Agents (Claude, Cursor, etc.)
+- **Live data** — real-time web search and page scraping on every call
+- **Business intelligence** — company profiles, email discovery, lead generation, competitor analysis
+- **Memory** — every result feeds a private knowledge graph. The more your agent uses Forage, the more it knows about your market
 
-Add to your MCP config:
+---
+
+## Tools
+
+### Core Tools
+
+| Tool | What it does | Cost |
+|------|-------------|------|
+| `search_web` | Real-time Google search | $0.03 |
+| `scrape_page` | Extract clean content from any URL | $0.07 |
+| `get_company_info` | Website + email intelligence for any domain | $0.08 |
+| `find_emails` | Verified email addresses for a domain via Hunter.io | $0.10 |
+| `find_local_leads` | Local businesses by type and location via Google Maps | $0.15 |
+| `find_leads` | Targeted B2B leads with verified emails | $0.25 / 100 leads |
+
+### Knowledge Graph Tools
+
+| Tool | What it does | Cost |
+|------|-------------|------|
+| `query_knowledge` | Query your accumulated intelligence | $0.02 |
+| `enrich_entity` | Get everything known about a company or domain | $0.03 |
+| `find_connections` | Discover relationships between entities | $0.05 |
+| `get_graph_stats` | Knowledge graph statistics | Free |
+
+### Actor Gateway Tools
+
+| Tool | What it does | Cost |
+|------|-------------|------|
+| `list_verified_actors` | Browse curated Apify actors available via Forage | $0.01 |
+| `get_actor_schema` | Get input schema and pricing for any actor | $0.01 |
+| `call_actor` | Run any Apify actor from within your agent workflow | Actor cost + 25% |
+
+---
+
+## Skills
+
+Skills are multi-step workflows triggered with a single call. Your agent gets a complete, structured intelligence package — not raw data it has to interpret.
+
+| Skill | What it delivers | Cost |
+|-------|-----------------|------|
+| `skill_company_dossier` | Full company profile: website, email pattern, key contacts | $0.50 |
+| `skill_prospect_company` | Decision makers with verified emails, sorted by seniority | $0.75 |
+| `skill_outbound_list` | 100 targeted leads with verified emails, export-ready | $3.50 |
+| `skill_local_market_map` | Every business of a type in a location with phones and websites | $0.80 |
+| `skill_competitor_intel` | Competitor pricing, features and reviews — searched and scraped | $0.80 |
+| `skill_decision_maker_finder` | 20 verified decision-maker contacts at any company | $1.00 |
+| `skill_competitor_ads` | Active ads on Facebook Ad Library and Google Transparency | $0.65 |
+| `skill_job_signals` | Hiring patterns that reveal a company's growth strategy | $0.55 |
+| `skill_tech_stack` | Tools and platforms a company runs, from BuiltWith and engineering blogs | $0.45 |
+| `skill_funding_intel` | Funding rounds, investors, recent news and growth signals | $0.70 |
+| `skill_social_proof` | G2, Capterra and Trustpilot reviews — praise, complaints, buyer personas | $0.55 |
+| `skill_market_map` | All players in a market with positioning, pricing tiers and differentiators | $1.20 |
+
+---
+
+## Sample Output
+
+**`skill_company_dossier` on `stripe.com`:**
+
+```json
+{
+  "domain": "stripe.com",
+  "company_name": "Stripe",
+  "website_summary": {
+    "title": "Stripe | Financial Infrastructure for the Internet",
+    "summary": "Stripe is a technology company that builds economic infrastructure for the internet..."
+  },
+  "email_pattern": "{first}@stripe.com",
+  "total_emails_found": 12,
+  "key_contacts": [
+    {
+      "name": "John Collison",
+      "email": "john@stripe.com",
+      "title": "President",
+      "seniority": "c_suite",
+      "confidence": 97
+    }
+  ],
+  "cost_usd": 0.50
+}
+```
+
+**`find_local_leads` for dentists in Manchester:**
+
+```json
+{
+  "keyword": "dentist",
+  "location": "Manchester",
+  "leads": [
+    {
+      "name": "Peel Dental Studio",
+      "address": "1 Peel Moat Rd, Stockport",
+      "phone": "0161 432 1133",
+      "website": "https://peeldentalstudio.co.uk",
+      "rating": 4.9,
+      "review_count": 312
+    }
+  ],
+  "cost_usd": 0.15
+}
+```
+
+---
+
+## Connecting to Your AI Agent
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "web-intelligence": {
-      "url": "https://your-username--web-intelligence-mcp.apify.actor/sse"
+    "forage": {
+      "command": "npx",
+      "args": ["-y", "@apify/actor-mcp-server", "--actors=ernesta_labs/forage"]
     }
   }
 }
 ```
 
-### For Developers (Publish Your Own)
+### Cursor / Windsurf / any MCP client
 
-```bash
-# 1. Clone and setup
-git clone <your-repo>
-cd web-intelligence-mcp
-npm install
+Use the Apify MCP gateway with actor ID `ernesta_labs/forage`.
 
-# 2. Configure API keys
-cp .env.example .env
-# Edit .env with your keys
-
-# 3. Test locally
-npm run build
-apify run
-
-# 4. Deploy to Apify
-apify login
-apify push
-```
-
-## API Keys Required
-
-| Service | Purpose | Get Key At |
-|---------|---------|------------|
-| SerpAPI | Web search | [serpapi.com](https://serpapi.com) |
-| Jina AI | Web scraping | [jina.ai/reader](https://jina.ai/reader) |
-| Google Places | Lead generation | [Google Cloud](https://cloud.google.com) |
-| Clearbit | Company data | [clearbit.com](https://clearbit.com) |
-
-**Free tiers available for all!**
-
-## Tool Examples
-
-### search_web
-```json
-{
-  "query": "AI agent startups funding 2024",
-  "num_results": 10
-}
-```
-
-### scrape_page
-```json
-{
-  "url": "https://example.com/article"
-}
-```
-
-### find_leads
-```json
-{
-  "keyword": "software companies",
-  "location": "San Francisco, CA",
-  "max_results": 20
-}
-```
-
-### get_company_info
-```json
-{
-  "domain": "stripe.com"
-}
-```
-
-## Monetization
-
-This Actor uses **Apify Pay-Per-Event**:
-
-| Event | Price | When Charged |
-|-------|-------|--------------|
-| `search-web` | $0.02 | Every search_web call |
-| `scrape-page` | $0.05 | Every scrape_page call |
-| `find-leads` | $0.10 | Every find_leads call |
-| `company-info` | $0.15 | Every get_company_info call |
-
-**Your earnings:** 80% of revenue (Apify takes 20% commission)
-
-## Deployment
-
-### Option 1: Apify Console (Easiest)
-
-1. Go to [Apify Console](https://console.apify.com)
-2. Create new Actor from GitHub repo
-3. Set environment variables
-4. Enable "Standby mode" in settings
-5. Set pricing in "Monetization" tab
-
-### Option 2: CLI
-
-```bash
-# Install Apify CLI
-npm install -g apify-cli
-
-# Login
-apify login
-
-# Push to Apify
-apify push
-
-# Set secrets
-apify secrets:set SERPAPI_KEY your_key_here
-apify secrets:set JINA_AI_KEY your_key_here
-# ... etc
-```
-
-## Standby Mode
-
-Standby mode gives you a **persistent URL** that MCP clients can connect to:
+### Direct SSE Connection
 
 ```
-https://your-username--web-intelligence-mcp.apify.actor/sse
+GET https://{actor-run-hostname}/sse
+POST https://{actor-run-hostname}/messages?sessionId={id}
 ```
 
-This URL stays active even when the Actor isn't running. Apify automatically starts it when a request comes in.
-
-## Configuration
-
-### Environment Variables
-
-Create `.env` file:
-
-```bash
-# Required
-SERPAPI_KEY=your_serpapi_key
-JINA_AI_KEY=your_jina_key
-GOOGLE_PLACES_API_KEY=your_google_key
-CLEARBIT_API_KEY=your_clearbit_key
-
-# Optional
-APIFY_LOG_LEVEL=INFO
-```
-
-### Pricing Configuration
-
-Edit `.actor/pay_per_event.json` to adjust prices:
-
-```json
-[
-  {
-    "search-web": {
-      "eventTitle": "Web Search",
-      "eventDescription": "Live Google/Bing search results",
-      "eventPriceUsd": 0.02
-    }
-  }
-]
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Apify Platform                        │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         Web Intelligence MCP Server              │   │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌────────┐ │   │
-│  │  │ Search  │ │ Scrape  │ │  Leads  │ │Company │ │   │
-│  │  │  $0.02  │ │  $0.05  │ │  $0.10  │ │ $0.15  │ │   │
-│  │  └────┬────┘ └────┬────┘ └────┬────┘ └───┬────┘ │   │
-│  │       └─────────────┴───────────┴────────┘      │   │
-│  │                      │                          │   │
-│  │              Actor.charge()                     │   │
-│  │                      │                          │   │
-│  │              MCP Server (SSE)                   │   │
-│  └──────────────────────┼──────────────────────────┘   │
-│                         │                               │
-│              https://...apify.actor/sse                 │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Local Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run with stdio (for testing)
-MCP_TRANSPORT=stdio npm start
-
-# Run with SSE (for local HTTP)
-npm start
-# Server runs on http://localhost:3000/sse
-```
-
-## Testing
-
-Test with the MCP inspector:
-
-```bash
-npx @modelcontextprotocol/inspector node dist/main.js
-```
-
-## Why This Wins
-
-1. **Supply**: Near-zero MCP servers on Apify right now
-2. **Demand**: Every AI framework adopting MCP (Claude, GPT, Cursor)
-3. **Agentic Payments**: Apify handles billing, agents pay autonomously
-4. **Moat**: First quality servers get whitelisted in agent configs
-5. **Recurring**: Agents run 24/7, every query = billable event
-
-## Revenue Potential
-
-| Daily Calls | Monthly Revenue | Your Cut (80%) |
-|-------------|-----------------|----------------|
-| 100         | $500            | $400           |
-| 1,000       | $5,000          | $4,000         |
-| 10,000      | $50,000         | $40,000        |
-
-**Costs:** API keys have free tiers, then ~$0.01-0.05 per call
-
-## Support
-
-- [Apify Docs](https://docs.apify.com)
-- [MCP Docs](https://modelcontextprotocol.io)
-- [Discord](https://discord.gg/apify)
-
-## License
-
-MIT - Build your own, publish, profit.
+See the API tab for full OpenAPI documentation.
 
 ---
 
-**The USB-C moment for AI agents. Deploy today.**
+## The Knowledge Graph
+
+Every tool call silently feeds a private knowledge graph. Entities, relationships, and confidence scores accumulate across all sessions.
+
+The more you use Forage, the more it knows about your market. After a few weeks of agent activity:
+
+- `query_knowledge("companies using Stripe in fintech")` returns results no live API has
+- `enrich_entity("hubspot.com")` returns richer data than Hunter.io — at $0.03 vs $0.10+
+- `find_connections("Stripe", "Plaid")` surfaces shared investors, shared hires, shared customers
+
+Data is private per Apify account. PII is stored as one-way hashes only.
+
+---
+
+## Pricing
+
+Forage runs entirely on our infrastructure. No API keys, no third-party accounts, no configuration. Connect your agent and go.
+
+Pay per tool call. No subscription, no minimum. Charges are processed by Apify — you only pay for what your agent actually uses.
+
+The free trial includes $1.00 of credit — enough for ~30 web searches or 2 Company Dossiers.
+
+---
+
+## Support
+
+Open an issue on [GitHub](https://github.com/mcamarketing/Forage) or contact us through Apify.

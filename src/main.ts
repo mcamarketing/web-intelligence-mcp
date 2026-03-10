@@ -1,7 +1,7 @@
 import { Actor } from 'apify';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { 
   CallToolRequestSchema, 
   ListToolsRequestSchema 
@@ -92,7 +92,7 @@ const TOOLS = [
 // MCP SERVER
 // ==========================================
 
-const mcpServer = new Server({ name: 'forage-mcp', version: '1.0.0' }, { capabilities: { tools: {} } });
+const mcpServer = new Server({ name: 'forage', version: '1.0.0' }, { capabilities: { tools: {} } });
 
 mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
@@ -636,28 +636,21 @@ async function main() {
     const http = await import('http');
     const express = await import('express');
     const app = express.default();
-    const activeTransports = new Map<string, SSEServerTransport>();
 
-    app.get('/sse', async (req: any, res: any) => {
-      const transport = new SSEServerTransport('/messages', res);
-      const sessionId = transport.sessionId;
-      activeTransports.set(sessionId, transport);
-      res.on('close', () => activeTransports.delete(sessionId));
+    // StreamableHTTP — single POST endpoint, stateless, proxy-safe
+    app.all('/', async (req: any, res: any) => {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // stateless mode
+      });
       await mcpServer.connect(transport);
-      console.error(`[Forage] Connected: ${sessionId}`);
+      await transport.handleRequest(req, res);
     });
 
-    app.post('/messages', express.default.json(), async (req: any, res: any) => {
-      const sessionId = req.query.sessionId as string;
-      if (!sessionId || !activeTransports.has(sessionId))
-        return res.status(400).json({ error: 'Invalid sessionId' });
-      await activeTransports.get(sessionId)!.handlePostMessage(req, res);
-    });
-
-    app.get('/health', (_req: any, res: any) => res.json({ status: 'ok', tools: TOOLS.length }));
+    app.get('/health', (_req: any, res: any) =>
+      res.json({ status: 'ok', server: 'forage', tools: TOOLS.length }));
 
     http.createServer(app).listen(port, () =>
-      console.error(`[Forage] Gateway on port ${port} (standby: ${!!standbyPort})`));
+      console.error(`[Forage] StreamableHTTP on port ${port}`));
   } else {
     await mcpServer.connect(new StdioServerTransport());
     console.error('[Forage] Gateway on stdio');

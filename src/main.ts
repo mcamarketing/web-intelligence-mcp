@@ -92,47 +92,51 @@ const TOOLS = [
 // MCP SERVER
 // ==========================================
 
-const mcpServer = new Server({ name: 'forage', version: '1.0.0' }, { capabilities: { tools: {} } });
+export function setupMcpServer() {
+  const mcpServer = new Server({ name: 'forage', version: '1.0.0' }, { capabilities: { tools: {} } });
 
-mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
+  mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
-mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  console.error(`[Forage] ${name}`, args);
-  try {
-    switch (name) {
-      case 'search_web': return await handleSearchWeb(args as any);
-      case 'scrape_page': return await handleScrapePage(args as any);
-      case 'get_company_info': return await handleGetCompanyInfo(args as any);
-      case 'find_emails': return await handleFindEmails(args as any);
-      case 'find_local_leads': return await handleFindLocalLeads(args as any);
-      case 'find_leads': return await handleFindLeads(args as any);
-      case 'query_knowledge': return await handleQueryKnowledge(args as any);
-      case 'enrich_entity': return await handleEnrichEntity(args as any);
-      case 'find_connections': return await handleFindConnections(args as any);
-      case 'get_graph_stats': return await handleGetGraphStats();
-      case 'list_verified_actors': return await handleListVerifiedActors(args as any);
-      case 'get_actor_schema': return await handleGetActorSchema(args as any);
-      case 'call_actor': return await handleCallActor(args as any);
-      case 'skill_company_dossier': return await handleSkillCompanyDossier(args as any);
-      case 'skill_prospect_company': return await handleSkillProspectCompany(args as any);
-      case 'skill_outbound_list': return await handleSkillOutboundList(args as any);
-      case 'skill_local_market_map': return await handleSkillLocalMarketMap(args as any);
-      case 'skill_competitor_intel': return await handleSkillCompetitorIntel(args as any);
-      case 'skill_decision_maker_finder': return await handleSkillDecisionMakerFinder(args as any);
-      case 'skill_competitor_ads': return await handleSkillCompetitorAds(args as any);
-      case 'skill_job_signals': return await handleSkillJobSignals(args as any);
-      case 'skill_tech_stack': return await handleSkillTechStack(args as any);
-      case 'skill_funding_intel': return await handleSkillFundingIntel(args as any);
-      case 'skill_social_proof': return await handleSkillSocialProof(args as any);
-      case 'skill_market_map': return await handleSkillMarketMap(args as any);
-      default: throw new Error(`Unknown tool: ${name}`);
+  mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    console.error(`[Forage] ${name}`, args);
+    try {
+      switch (name) {
+        case 'search_web': return await handleSearchWeb(args as any);
+        case 'scrape_page': return await handleScrapePage(args as any);
+        case 'get_company_info': return await handleGetCompanyInfo(args as any);
+        case 'find_emails': return await handleFindEmails(args as any);
+        case 'find_local_leads': return await handleFindLocalLeads(args as any);
+        case 'find_leads': return await handleFindLeads(args as any);
+        case 'query_knowledge': return await handleQueryKnowledge(args as any);
+        case 'enrich_entity': return await handleEnrichEntity(args as any);
+        case 'find_connections': return await handleFindConnections(args as any);
+        case 'get_graph_stats': return await handleGetGraphStats();
+        case 'list_verified_actors': return await handleListVerifiedActors(args as any);
+        case 'get_actor_schema': return await handleGetActorSchema(args as any);
+        case 'call_actor': return await handleCallActor(args as any);
+        case 'skill_company_dossier': return await handleSkillCompanyDossier(args as any);
+        case 'skill_prospect_company': return await handleSkillProspectCompany(args as any);
+        case 'skill_outbound_list': return await handleSkillOutboundList(args as any);
+        case 'skill_local_market_map': return await handleSkillLocalMarketMap(args as any);
+        case 'skill_competitor_intel': return await handleSkillCompetitorIntel(args as any);
+        case 'skill_decision_maker_finder': return await handleSkillDecisionMakerFinder(args as any);
+        case 'skill_competitor_ads': return await handleSkillCompetitorAds(args as any);
+        case 'skill_job_signals': return await handleSkillJobSignals(args as any);
+        case 'skill_tech_stack': return await handleSkillTechStack(args as any);
+        case 'skill_funding_intel': return await handleSkillFundingIntel(args as any);
+        case 'skill_social_proof': return await handleSkillSocialProof(args as any);
+        case 'skill_market_map': return await handleSkillMarketMap(args as any);
+        default: throw new Error(`Unknown tool: ${name}`);
+      }
+    } catch (error) {
+      console.error(`[Forage] Error:`, error);
+      return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
     }
-  } catch (error) {
-    console.error(`[Forage] Error:`, error);
-    return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
-  }
-});
+  });
+
+  return mcpServer;
+}
 
 // ==========================================
 // HELPERS
@@ -630,6 +634,9 @@ async function main() {
   const standbyPort = process.env.ACTOR_STANDBY_PORT || process.env.ACTOR_WEB_SERVER_PORT;
   const useHttp = standbyPort || process.env.TRANSPORT === 'http';
 
+  // Keep track of all active servers so we can close them gracefully
+  const activeServers = new Set<Server>();
+
   if (useHttp) {
     const port = parseInt(standbyPort || process.env.PORT || '3000');
     const http = await import('http');
@@ -642,9 +649,16 @@ async function main() {
     // SSE endpoint — client connects here to establish the event stream
     app.get('/sse', async (req: any, res: any) => {
       console.error('[Forage] SSE connection from', req.ip);
+      const mcpServer = setupMcpServer();
+      activeServers.add(mcpServer);
       const transport = new SSEServerTransport('/messages', res);
       transports[transport.sessionId] = transport;
-      res.on('close', () => { delete transports[transport.sessionId]; });
+      
+      res.on('close', () => { 
+        delete transports[transport.sessionId]; 
+        activeServers.delete(mcpServer);
+      });
+      
       await mcpServer.connect(transport);
     });
 
@@ -662,9 +676,16 @@ async function main() {
     // Also mount on /mcp for webServerMcpPath compatibility
     app.get('/mcp', async (req: any, res: any) => {
       console.error('[Forage] SSE connection on /mcp from', req.ip);
+      const mcpServer = setupMcpServer();
+      activeServers.add(mcpServer);
       const transport = new SSEServerTransport('/messages', res);
       transports[transport.sessionId] = transport;
-      res.on('close', () => { delete transports[transport.sessionId]; });
+      
+      res.on('close', () => { 
+        delete transports[transport.sessionId]; 
+        activeServers.delete(mcpServer);
+      });
+      
       await mcpServer.connect(transport);
     });
 
@@ -676,12 +697,23 @@ async function main() {
       console.error(`[Forage] SSE MCP server on 0.0.0.0:${port}`));
 
   } else {
+    const mcpServer = setupMcpServer();
+    activeServers.add(mcpServer);
     await mcpServer.connect(new StdioServerTransport());
     console.error('[Forage] Gateway on stdio');
   }
-}
 
-process.on('SIGINT', async () => { await mcpServer.close(); await Actor.exit(); process.exit(0); });
-process.on('SIGTERM', async () => { await mcpServer.close(); await Actor.exit(); process.exit(0); });
+  // Handle graceful shutdown
+  const shutdown = async () => {
+    for (const server of activeServers) {
+      await server.close();
+    }
+    await Actor.exit();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
 
 main().catch(console.error);

@@ -1,0 +1,7 @@
+@echo off
+set MCP_TRANSPORT=stdio
+set SERPAPI_KEY=91384df31cf9f853c219479045828676ae6b247357944684d4228971fdcaaaea
+set JINA_AI_KEY=jina_9b05e7df29f54b52a1234eb5b40782af_cy3bBH5IiSJPbyE-K_d7dty2VJ3
+set GOOGLE_PLACES_API_KEY=AIzaSyAlTW9N2JHE7pQYHTOXQHrWvSbKZW3mDpE
+set HUNTER_API_KEY=b32c5e826989df7d9a69a043392529b1e191c584
+"C:\Program Files\nodejs\node.exe" "C:\Users\Hello\OneDrive\Documents\Forage_Landing\web-intelligence-mcp\dist\main.js"

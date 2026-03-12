@@ -1,7 +1,7 @@
 import { Actor } from 'apify';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { 
   CallToolRequestSchema, 
   ListToolsRequestSchema 
@@ -633,46 +633,47 @@ async function main() {
   if (useHttp) {
     const port = parseInt(standbyPort || process.env.PORT || '3000');
     const http = await import('http');
+    const express = await import('express');
+    const app = express.default();
 
-    // Create transport ONCE and reuse — not per-request
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // stateless mode
+    // Track active transports by session for message routing
+    const transports: Record<string, SSEServerTransport> = {};
+
+    // SSE endpoint — client connects here to establish the event stream
+    app.get('/sse', async (req: any, res: any) => {
+      console.error('[Forage] SSE connection from', req.ip);
+      const transport = new SSEServerTransport('/messages', res);
+      transports[transport.sessionId] = transport;
+      res.on('close', () => { delete transports[transport.sessionId]; });
+      await mcpServer.connect(transport);
     });
-    await mcpServer.connect(transport);
 
-    const server = http.createServer(async (req, res) => {
-      const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-      const path = url.pathname;
-
-      // Health check
-      if (path === '/health' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', server: 'forage', tools: TOOLS.length }));
+    // Messages endpoint — client POSTs JSON-RPC messages here
+    app.post('/messages', express.default.json(), async (req: any, res: any) => {
+      const sessionId = req.query.sessionId as string;
+      const transport = transports[sessionId];
+      if (!transport) {
+        res.status(400).json({ error: 'Unknown session', sessionId });
         return;
       }
-
-      // MCP routes — /mcp or / (for both POST, GET, DELETE)
-      if (path === '/mcp' || path === '/') {
-        try {
-          await transport.handleRequest(req, res);
-        } catch (err: any) {
-          console.error('[Forage] Transport error:', err);
-          if (!res.headersSent) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: err?.message || 'Internal error' }));
-          }
-        }
-        return;
-      }
-
-      // 404 for anything else
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found' }));
+      await transport.handlePostMessage(req, res, req.body);
     });
+
+    // Also mount on /mcp for webServerMcpPath compatibility
+    app.get('/mcp', async (req: any, res: any) => {
+      console.error('[Forage] SSE connection on /mcp from', req.ip);
+      const transport = new SSEServerTransport('/messages', res);
+      transports[transport.sessionId] = transport;
+      res.on('close', () => { delete transports[transport.sessionId]; });
+      await mcpServer.connect(transport);
+    });
+
+    app.get('/health', (_req: any, res: any) =>
+      res.json({ status: 'ok', server: 'forage', tools: TOOLS.length }));
 
     // Bind to 0.0.0.0 — required for Apify Standby mode
-    server.listen(port, '0.0.0.0', () =>
-      console.error(`[Forage] StreamableHTTP on 0.0.0.0:${port}`));
+    http.createServer(app).listen(port, '0.0.0.0', () =>
+      console.error(`[Forage] SSE MCP server on 0.0.0.0:${port}`));
 
   } else {
     await mcpServer.connect(new StdioServerTransport());

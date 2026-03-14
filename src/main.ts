@@ -681,7 +681,9 @@ async function main() {
     const app = express.default();
 
     // The new MCP SDK manages sessions internally through a single global transport
-    const transport = new StreamableHTTPServerTransport();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID()
+    });
     const mcpServer = setupMcpServer();
     activeServers.add(mcpServer);
     

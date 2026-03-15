@@ -685,7 +685,7 @@ async function main() {
     // Streamable HTTP — one transport per session, stored by session ID
     const transports = new Map<string, StreamableHTTPServerTransport>();
 
-    app.all('/', async (req: any, res: any) => {
+    app.all('*', async (req: any, res: any) => {
       try {
         // New session: POST with no mcp-session-id header
         if (req.method === 'POST' && !req.headers['mcp-session-id']) {

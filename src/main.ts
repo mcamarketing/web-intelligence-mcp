@@ -368,7 +368,6 @@ async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?
     free_credit_remaining: remaining 
   }, null, 2) }] };
 }
-  }
   
   const emeliaKey = process.env.EMELIA_API_KEY;
   if (emeliaKey && emeliaKey.length > 5) {

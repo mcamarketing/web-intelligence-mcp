@@ -27,9 +27,22 @@ const PRICING = {
   FIND_LEADS: { event: 'find-leads', charge: 0.25, unit: 'per_100_leads', net: 0.187 },
   LIST_ACTORS: { event: 'list-verified', charge: 0.01, unit: 'per_call', net: 0.007 },
   GET_SCHEMA: { event: 'get-schema', charge: 0.01, unit: 'per_call', net: 0.007 },
-  QUERY_KNOWLEDGE: { event: 'query-knowledge', charge: 0.02, unit: 'per_query', net: 0.015 },
-  ENRICH_ENTITY: { event: 'enrich-entity', charge: 0.03, unit: 'per_call', net: 0.022 },
-  FIND_CONNECTIONS: { event: 'find-connections', charge: 0.05, unit: 'per_call', net: 0.037 },
+  // Knowledge Graph — Premium pricing (no competitors offer persistent graph + causal analysis)
+  QUERY_KNOWLEDGE: { event: 'query-knowledge', charge: 0.05, unit: 'per_query', net: 0.037 },
+  ENRICH_ENTITY: { event: 'enrich-entity', charge: 0.08, unit: 'per_call', net: 0.060 },
+  FIND_CONNECTIONS: { event: 'find-connections', charge: 0.12, unit: 'per_call', net: 0.090 },
+  // Graph Advanced
+  GET_CLAIMS: { event: 'get-claims', charge: 0.05, unit: 'per_call', net: 0.037 },
+  ADD_CLAIM: { event: 'add-claim', charge: 0.05, unit: 'per_call', net: 0.037 },
+  GET_REGIME: { event: 'get-regime', charge: 0.03, unit: 'per_call', net: 0.022 },
+  SET_REGIME: { event: 'set-regime', charge: 0.03, unit: 'per_call', net: 0.022 },
+  GET_SIGNALS: { event: 'get-signals', charge: 0.05, unit: 'per_call', net: 0.037 },
+  ADD_SIGNAL: { event: 'add-signal', charge: 0.05, unit: 'per_call', net: 0.037 },
+  CAUSAL_PARENTS: { event: 'causal-parents', charge: 0.08, unit: 'per_call', net: 0.060 },
+  CAUSAL_CHILDREN: { event: 'causal-children', charge: 0.08, unit: 'per_call', net: 0.060 },
+  CAUSAL_PATH: { event: 'causal-path', charge: 0.15, unit: 'per_call', net: 0.112 },
+  SIMULATE: { event: 'simulate', charge: 0.25, unit: 'per_call', net: 0.187 },
+  LIST_REGIME: { event: 'list-regime-entities', charge: 0.05, unit: 'per_call', net: 0.037 },
   OPEN_ACCESS_MARKUP_PERCENT: 25,
   OPEN_ACCESS_MINIMUM_FEE: 0.01,
   // Original Skills
@@ -115,6 +128,19 @@ const TOOLS = [
   { name: 'enrich_entity', description: 'Retrieve all accumulated data about a company from the knowledge graph. Use after previous research to get full entity profile. For fresh data use get_company_info or skill_company_dossier instead. Cost: $0.03', inputSchema: { type: 'object', properties: { identifier: { type: 'string', description: 'e.g., "stripe.com" or "Stripe"' } }, required: ['identifier'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'find_connections', description: 'Discover relationships between two entities in the knowledge graph. Returns connection paths (shared investors, employees, customers). Only works with previously researched entities. Cost: $0.05', inputSchema: { type: 'object', properties: { from_entity: { type: 'string' }, to_entity: { type: 'string' }, max_hops: { type: 'number', default: 3 } }, required: ['from_entity', 'to_entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'get_graph_stats', description: 'View knowledge graph statistics: total entities, relationships, data sources. Use to understand what data has been accumulated. Free', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  // GRAPH ADVANCED TOOLS
+  { name: 'get_claims', description: 'Retrieve all claims/provenance assertions for an entity from the knowledge graph. Returns sourced assertions with confidence scores. Use for evidence-backed research. Cost: $0.02', inputSchema: { type: 'object', properties: { entity: { type: 'string', description: 'Company or entity name' } }, required: ['entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'add_claim', description: 'Add a provenance claim to the knowledge graph. Stores entity relationship assertions with source URL and confidence. Use to build evidence base. Cost: $0.02', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, relation: { type: 'string' }, target: { type: 'string' }, assertion: { type: 'string' }, source_url: { type: 'string' }, confidence: { type: 'number', default: 0.8 } }, required: ['entity', 'relation', 'target', 'assertion'] }, annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: 'get_regime', description: 'Get the current regime label for an entity (normal, stressed, pre_tipping, post_event). Use to understand entity stability. Cost: $0.01', inputSchema: { type: 'object', properties: { entity: { type: 'string' } }, required: ['entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'set_regime', description: 'Set the regime label for an entity. Values: normal, stressed, pre_tipping, post_event. Use to mark entity stability state. Cost: $0.01', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, regime: { type: 'string', enum: ['normal', 'stressed', 'pre_tipping', 'post_event'] } }, required: ['entity', 'regime'] }, annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: 'get_signals', description: 'Retrieve time-series signal data for an entity. Returns historical data points for metrics. Use for trend analysis. Cost: $0.02', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, metric: { type: 'string' }, limit: { type: 'number', default: 100 } }, required: ['entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'add_signal', description: 'Add a time-series data point for an entity. Stores metric value with timestamp in knowledge graph. Use to track metrics over time. Cost: $0.02', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, metric: { type: 'string' }, value: { type: 'number' }, timestamp: { type: 'number' } }, required: ['entity', 'metric', 'value'] }, annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: 'get_causal_parents', description: 'Find entities that drive/caused this entity upstream. Returns causal relationships with weights. Use for root cause analysis. Cost: $0.03', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'get_causal_children', description: 'Find entities this entity drives downstream. Returns causal relationships with weights. Use for impact analysis. Cost: $0.03', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'get_causal_path', description: 'Find the highest causal-weight path between two entities. Returns path with mechanism details. Use for understanding influence chains. Cost: $0.05', inputSchema: { type: 'object', properties: { from_entity: { type: 'string' }, to_entity: { type: 'string' } }, required: ['from_entity', 'to_entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'simulate', description: 'Simulate a shock/boost/remove intervention on an entity. Propagates impact through causal graph with attenuation. Returns affected entities and residual impacts. Use for scenario planning. Cost: $0.10', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, intervention: { type: 'string', enum: ['shock', 'boost', 'remove'] }, depth: { type: 'number', default: 3 } }, required: ['entity', 'intervention'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'list_regime_entities', description: 'List all entities with a specific regime label. Use to find stressed or pre_tipping entities. Cost: $0.02', inputSchema: { type: 'object', properties: { regime: { type: 'string', enum: ['normal', 'stressed', 'pre_tipping', 'post_event'] } }, required: ['regime'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'list_regime_entities', description: 'List all entities with a specific regime label. Use to find stressed or pre_tipping entities. Cost: $0.02', inputSchema: { type: 'object', properties: { regime: { type: 'string', enum: ['normal', 'stressed', 'pre_tipping', 'post_event'] } }, required: ['regime'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'list_verified_actors', description: 'List available Apify actors that can be run via call_actor. Returns actor IDs, descriptions, and pricing. Use before call_actor to find the right actor. Cost: $0.01', inputSchema: { type: 'object', properties: { category: { type: 'string', default: 'all' } } }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'get_actor_schema', description: 'Get input schema and pricing for a specific Apify actor. Use before call_actor to understand required parameters. Cost: $0.01', inputSchema: { type: 'object', properties: { actor_id: { type: 'string' } }, required: ['actor_id'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'call_actor', description: 'Execute any Apify actor with custom input. Use list_verified_actors and get_actor_schema first to find actors and understand inputs. Set max_cost_usd to limit spending. Cost: actor price + 25%', inputSchema: { type: 'object', properties: { actor_id: { type: 'string' }, input: { type: 'object' }, timeout_secs: { type: 'number', default: 120 }, max_cost_usd: { type: 'number' } }, required: ['actor_id', 'input'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
@@ -159,6 +185,17 @@ export function setupMcpServer() {
         case 'enrich_entity': return await handleEnrichEntity(args as any);
         case 'find_connections': return await handleFindConnections(args as any);
         case 'get_graph_stats': return await handleGetGraphStats();
+        case 'get_claims': return await handleGetClaims(args as any);
+        case 'add_claim': return await handleAddClaim(args as any);
+        case 'get_regime': return await handleGetRegime(args as any);
+        case 'set_regime': return await handleSetRegime(args as any);
+        case 'get_signals': return await handleGetSignals(args as any);
+        case 'add_signal': return await handleAddSignal(args as any);
+        case 'get_causal_parents': return await handleGetCausalParents(args as any);
+        case 'get_causal_children': return await handleGetCausalChildren(args as any);
+        case 'get_causal_path': return await handleGetCausalPath(args as any);
+        case 'simulate': return await handleSimulate(args as any);
+        case 'list_regime_entities': return await handleListRegimeEntities(args as any);
         case 'list_verified_actors': return await handleListVerifiedActors(args as any);
         case 'get_actor_schema': return await handleGetActorSchema(args as any);
         case 'call_actor': return await handleCallActor(args as any);
@@ -282,26 +319,100 @@ async function handleGetCompanyInfo({ domain, find_emails = true }: { domain: st
 async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?: number }) {
   const cost = PRICING.FIND_EMAILS.charge;
   const { charged, freeUsed, remaining } = applyCredit(cost);
-  if (charged > 0) await Actor.charge({ eventName: PRICING.FIND_EMAILS.event, count: 1 });
-  const apolloKey = process.env.APOLLO_API_KEY;
-  if (!apolloKey) throw new Error('APOLLO_API_KEY not configured');
-  const { data } = await axios.post('https://api.apollo.io/v1/mixed_people/search',
-    { q_organization_domains: domain, page: 1, per_page: Math.min(limit, 25) },
-    { headers: { 'x-api-key': apolloKey, 'Content-Type': 'application/json' }, timeout: 15000 }
-  );
-  const emails = data.people?.map((p: any) => ({
-    name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
-    email: p.email,
-    title: p.title,
-    seniority: p.seniority,
-    department: p.departments?.[0],
-    linkedin: p.linkedin_url,
-    city: p.city,
-    state: p.state,
-    country: p.country,
-  })) || [];
-  graphClient.ingest('find_emails', { domain, emails });
-  return { content: [{ type: 'text', text: JSON.stringify({ domain, emails_found: emails.length, emails, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  if (charged > 0) {
+    try {
+      await Actor.charge({ eventName: PRICING.FIND_EMAILS.event, count: 1 });
+    } catch (e) {
+      console.error('Charging error:', e);
+    }
+  }
+  
+  // Try calling leads-finder MCP server via MCP protocol
+  try {
+    const mcpUrl = 'https://alluring-bookshelf--forage----mcp-server-for-ai-agents-task.apify.actor';
+    const mcpToken = process.env.APIFY_TOKEN || process.env.APIFY_API_TOKEN;
+    
+    if (mcpToken) {
+      const initRes = await axios.post(`${mcpUrl}?token=${mcpToken}`, 
+        { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'forage', version: '1.0' } } },
+        { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' }, timeout: 15000 }
+      );
+      
+      const mcpSession = initRes.headers.get('mcp-session-id');
+      if (mcpSession) {
+        const toolRes = await axios.post(`${mcpUrl}?token=${mcpToken}`,
+          { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'find_emails', arguments: { domain, limit } } },
+          { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'mcp-session-id': mcpSession }, timeout: 30000 }
+        );
+        
+        const text = toolRes.data;
+        if (text.result?.content) {
+          const content = text.result.content[0]?.text;
+          if (content && !content.includes('error')) {
+            graphClient.ingest('find_emails', { domain, emails: [] });
+            return { content: [{ type: 'text', text: content }] };
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('MCP leads-finder error:', e);
+  }
+  
+  return { content: [{ type: 'text', text: JSON.stringify({ 
+    domain, 
+    emails_found: 0, 
+    message: 'Email lookup unavailable. Try search or company info.',
+    cost_usd: cost, 
+    free_credit_used: freeUsed, 
+    free_credit_remaining: remaining 
+  }, null, 2) }] };
+}
+  }
+  
+  const emeliaKey = process.env.EMELIA_API_KEY;
+  if (emeliaKey && emeliaKey.length > 5) {
+    try {
+      const companyName = domain.replace(/\.[a-z]{2,}$/i, '').replace(/-/g, ' ');
+      const jobRes = await axios.post('https://api.emelia.io/tools/find/email',
+        { fullname: companyName, companyName: domain, country: 'US' },
+        { headers: { 'Authorization': `Bearer ${emeliaKey}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+      );
+      
+      if (jobRes.data && !jobRes.data.error && jobRes.data.jobId) {
+        const jobId = jobRes.data.jobId;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          const resultRes = await axios.get(`https://api.emelia.io/tools/find/email/${jobId}`,
+            { headers: { 'Authorization': `Bearer ${emeliaKey}` }, timeout: 5000 }
+          );
+          
+          if (resultRes.data && resultRes.data.status === 'completed') {
+            const emails = (resultRes.data.result || []).slice(0, limit).map((p: any) => ({
+              email: p.email || p.email_address,
+              name: p.full_name || p.fullname || '',
+              title: p.job_title || '',
+            }));
+            graphClient.ingest('find_emails', { domain, emails });
+            return { content: [{ type: 'text', text: JSON.stringify({ domain, emails_found: emails.length, emails, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+          } else if (resultRes.data && resultRes.data.status === 'failed') {
+            break;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('Emelia error:', e?.message || e);
+    }
+  }
+  
+  return { content: [{ type: 'text', text: JSON.stringify({ 
+    domain, 
+    emails_found: 0, 
+    message: 'Email lookup temporarily unavailable. Try search or company info instead.',
+    cost_usd: cost, 
+    free_credit_used: freeUsed, 
+    free_credit_remaining: remaining 
+  }, null, 2) }] };
 }
 
 async function handleFindLocalLeads({ keyword, location, radius = 5000, max_results = 20 }: any) {
@@ -359,8 +470,9 @@ async function handleQueryKnowledge(args: any) {
   const { charged, freeUsed, remaining } = applyCredit(cost);
   if (charged > 0) await Actor.charge({ eventName: PRICING.QUERY_KNOWLEDGE.event, count: 1 });
   if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
   try {
-    const res = await axios.post(`${process.env.GRAPH_API_URL}/query`, { name: args.question, type: args.entity_type !== 'any' ? args.entity_type : undefined, min_confidence: args.min_confidence || 0.0 }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    const res = await axios.post(`${graphUrl}/query`, { name: args.question, type: args.entity_type !== 'any' ? args.entity_type : undefined, min_confidence: args.min_confidence || 0.0 }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
     return { content: [{ type: 'text', text: JSON.stringify({ question: args.question, results: res.data.entities, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
   } catch (err: any) { return { content: [{ type: 'text', text: `Graph query failed: ${err.message}` }], isError: true }; }
 }
@@ -370,8 +482,9 @@ async function handleEnrichEntity(args: any) {
   const { charged, freeUsed, remaining } = applyCredit(cost);
   if (charged > 0) await Actor.charge({ eventName: PRICING.ENRICH_ENTITY.event, count: 1 });
   if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
   try {
-    const res = await axios.post(`${process.env.GRAPH_API_URL}/enrich`, { identifier: args.identifier }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    const res = await axios.post(`${graphUrl}/enrich`, { identifier: args.identifier }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
     return { content: [{ type: 'text', text: JSON.stringify({ identifier: args.identifier, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
   } catch (err: any) { return { content: [{ type: 'text', text: `Graph enrich failed: ${err.message}` }], isError: true }; }
 }
@@ -381,8 +494,9 @@ async function handleFindConnections(args: any) {
   const { charged, freeUsed, remaining } = applyCredit(cost);
   if (charged > 0) await Actor.charge({ eventName: PRICING.FIND_CONNECTIONS.event, count: 1 });
   if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
   try {
-    const res = await axios.post(`${process.env.GRAPH_API_URL}/connections`, { from: args.from_entity, to: args.to_entity, max_hops: args.max_hops || 3 }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    const res = await axios.post(`${graphUrl}/connections`, { from: args.from_entity, to: args.to_entity, max_hops: args.max_hops || 3 }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
     return { content: [{ type: 'text', text: JSON.stringify({ ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
   } catch (err: any) { return { content: [{ type: 'text', text: `Graph connections failed: ${err.message}` }], isError: true }; }
 }
@@ -391,9 +505,149 @@ async function handleGetGraphStats() {
   const cost = 0;
   const remaining = getUserRemainingCredit();
   if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ status: 'Graph service not configured', free_credit_remaining: remaining }) }] };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
   try {
-    const res = await axios.get(`${process.env.GRAPH_API_URL}/stats`, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    const res = await axios.get(`${graphUrl}/stats`, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
     return { content: [{ type: 'text', text: JSON.stringify({ knowledge_graph: res.data, cost_usd: cost, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+// ==========================================  
+// GRAPH ADVANCED HANDLERS
+// ==========================================
+
+async function handleGetClaims({ entity }: { entity: string }) {
+  const cost = 0.02;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'get-claims', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.get(`${graphUrl}/claims/${encodeURIComponent(entity)}`, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ entity, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleAddClaim(args: { entity: string; relation: string; target: string; assertion: string; source_url?: string; confidence?: number }) {
+  const cost = 0.02;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'add-claim', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/claim`, args, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleGetRegime({ entity }: { entity: string }) {
+  const cost = 0.01;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'get-regime', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.get(`${graphUrl}/regime/${encodeURIComponent(entity)}`, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ entity, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleSetRegime(args: { entity: string; regime: string }) {
+  const cost = 0.01;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'set-regime', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/regime`, args, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleGetSignals(args: { entity: string; metric?: string; limit?: number }) {
+  const cost = 0.02;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'get-signals', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.get(`${graphUrl}/signals/${encodeURIComponent(args.entity)}`, { 
+      headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` },
+      params: { metric: args.metric, limit: args.limit || 100 }
+    });
+    return { content: [{ type: 'text', text: JSON.stringify({ entity: args.entity, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleAddSignal(args: { entity: string; metric: string; value: number; timestamp?: number }) {
+  const cost = 0.02;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'add-signal', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/signal`, { ...args, timestamp: args.timestamp || Date.now() }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleGetCausalParents({ entity, limit = 10 }: { entity: string; limit?: number }) {
+  const cost = 0.03;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'causal-parents', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/causal_parents`, { entity, limit }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ entity, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleGetCausalChildren({ entity, limit = 10 }: { entity: string; limit?: number }) {
+  const cost = 0.03;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'causal-children', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/causal_children`, { entity, limit }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ entity, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleGetCausalPath({ from_entity, to_entity }: { from_entity: string; to_entity: string }) {
+  const cost = 0.05;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'causal-path', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/causal_path`, { from: from_entity, to: to_entity }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ from: from_entity, to: to_entity, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleSimulate(args: { entity: string; intervention: string; depth?: number }) {
+  const cost = 0.10;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'simulate', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.post(`${graphUrl}/simulate`, { entity: args.entity, intervention: args.intervention, depth: args.depth || 3 }, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+  } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
+}
+
+async function handleListRegimeEntities({ regime }: { regime: string }) {
+  const cost = 0.02;
+  const { charged, freeUsed, remaining } = applyCredit(cost);
+  if (charged > 0) await Actor.charge({ eventName: 'list-regime-entities', count: 1 });
+  if (!process.env.GRAPH_API_URL) return { content: [{ type: 'text', text: JSON.stringify({ error: 'Graph service not configured' }) }], isError: true };
+  const graphUrl = process.env.GRAPH_API_URL.replace(/\/$/, '');
+  try {
+    const res = await axios.get(`${graphUrl}/regime/list/${regime}`, { headers: { Authorization: `Bearer ${process.env.GRAPH_API_SECRET}` } });
+    return { content: [{ type: 'text', text: JSON.stringify({ regime, ...res.data, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
   } catch (err: any) { return { content: [{ type: 'text', text: JSON.stringify({ error: err.message, free_credit_remaining: remaining }) }], isError: true }; }
 }
 

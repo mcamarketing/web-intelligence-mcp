@@ -52,19 +52,19 @@ Every tool call automatically feeds a private knowledge graph that grows smarter
 
 | Tool | What it does | Price |
 |------|--------------|-------|
-| `query_knowledge` | Search entities by name/type | $0.02 |
-| `enrich_entity` | Full profile + all relationships | $0.03 |
-| `find_connections` | Path between two entities | $0.05 |
-| `add_claim` | Store provenance assertion | $0.02 |
-| `get_claims` | Retrieve claims for entity | $0.02 |
-| `add_signal` | Record time-series data point | $0.02 |
-| `get_signals` | Query metrics over time | $0.02 |
-| `set_regime` | Label entity state | $0.01 |
-| `get_regime` | Check entity state | $0.01 |
-| `causal_parents` | What drives this entity | $0.03 |
-| `causal_children` | What this entity drives | $0.03 |
-| `causal_path` | Highest-weight causal path | $0.05 |
-| `simulate` | Propagate shock/boost through graph | $0.10 |
+| `query_knowledge` | Search entities by name/type | $0.05 |
+| `enrich_entity` | Full profile + all relationships | $0.08 |
+| `find_connections` | Path between two entities | $0.12 |
+| `add_claim` | Store provenance assertion | $0.05 |
+| `get_claims` | Retrieve claims for entity | $0.05 |
+| `add_signal` | Record time-series data point | $0.05 |
+| `get_signals` | Query metrics over time | $0.05 |
+| `set_regime` | Label entity state | $0.03 |
+| `get_regime` | Check entity state | $0.03 |
+| `causal_parents` | What drives this entity | $0.08 |
+| `causal_children` | What this entity drives | $0.08 |
+| `causal_path` | Highest-weight causal path | $0.15 |
+| `simulate` | Propagate shock/boost through graph | $0.25 |
 | `get_graph_stats` | Entity/relationship counts | Free |
 
 The graph is **persistent** — stored in FalkorDB on our infrastructure. Your agent's research accumulates across sessions. The more you use Forage, the smarter it gets.

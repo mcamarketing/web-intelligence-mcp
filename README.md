@@ -1,122 +1,198 @@
-# Forage MCP — Web Intelligence and Lead Generation for AI Agents
+# Forage MCP — Web Intelligence & Persistent Knowledge Graph for AI Agents
 
-**Forage MCP** is a web intelligence and lead-generation server that lets AI agents search the live web, scrape pages, discover companies, and find B2B emails from one interface. It is designed for AI agents (Claude, n8n, LangGraph, custom MCP clients) that need reliable, structured web data to generate real revenue—leads, bookings, and sales.
+Forage is a Model Context Protocol (MCP) server that gives AI agents **real-time web intelligence** and a **self-accumulating knowledge graph**. One connection provides 24 tools and 12 multi-step skills: web search, company data, verified B2B emails, local leads, and a graph that remembers everything your agent has ever discovered.
 
----
-
-## What is Forage MCP?
-
-Forage MCP is a Model Context Protocol (MCP) server that gives AI agents capabilities they don't have built-in: verified email discovery, B2B lead generation, local business data, company intelligence, and persistent memory across sessions. One MCP connection provides 24 tools and 12 multi-step skills.
-
-Forage runs on Apify's infrastructure, which handles proxies, rate limiting, and web scraping at scale.
+Built on Apify's scraping infrastructure. Powered by FalkorDB for persistent graph storage.
 
 ---
 
-## When should you use Forage MCP?
+## The Knowledge Graph — Your Agent's Memory
 
-Use Forage when your agent needs:
+Every tool call automatically feeds a private knowledge graph that grows smarter over time. No other MCP server does this.
 
-- Live web data (not static docs or your own database)
-- Lists of companies or local businesses for a specific niche and location
-- Company-level intelligence (website, socials, basic contacts)
-- B2B emails for outreach and sales workflows
-- Persistent memory that accumulates over multiple sessions
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    FORAGE KNOWLEDGE GRAPH                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   [Company A] ──── has_domain ────▶ [domain.com]           │
+│       │                                │                    │
+│       │ works_at                       │ has_email_pattern  │
+│       ▼                                ▼                    │
+│   [Person B] ◀─── has_title ──── [Email Pattern]           │
+│       │                                │                    │
+│       │ located_in                     │ verified_emails    │
+│       ▼                                ▼                    │
+│   [San Francisco]              [john@domain.com]           │
+│       │                                │                    │
+│       │ operates_in                    │ linkedin           │
+│       ▼                                ▼                    │
+│   [SaaS Industry]              [LinkedIn Profile]          │
+│                                                             │
+│   Claims: "Raised Series A in 2024" (confidence: 89%)      │
+│   Signals: Hiring spike in Q4 2025 (+45%)                  │
+│   Regime: growth                                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Do **not** use Forage when:
+### What makes it different
 
-- The answer can be given from the model's own knowledge or your internal docs
-- You already have the necessary data in your own database
-- You don't have a clear business outcome (leads, clients, or intel) for the query
+| Feature | Forage Graph | Generic RAG/Vector DB |
+|---------|--------------|----------------------|
+| Entity deduplication | ✓ SHA-256 identity | ✗ Creates duplicates |
+| Relationship tracking | ✓ Typed edges (works_at, located_in) | ✗ Similarity only |
+| Confidence scoring | ✓ Increases with corroboration | ✗ Static embeddings |
+| Provenance (claims) | ✓ Who said what, when | ✗ No source tracking |
+| Time-series signals | ✓ Track metrics over time | ✗ Snapshot only |
+| Causal inference | ✓ Find what drives what | ✗ No causality |
+| Regime detection | ✓ Normal / stressed / pre-tipping | ✗ No state tracking |
+
+### Graph tools
+
+| Tool | What it does | Price |
+|------|--------------|-------|
+| `query_knowledge` | Search entities by name/type | $0.02 |
+| `enrich_entity` | Full profile + all relationships | $0.03 |
+| `find_connections` | Path between two entities | $0.05 |
+| `add_claim` | Store provenance assertion | $0.02 |
+| `get_claims` | Retrieve claims for entity | $0.02 |
+| `add_signal` | Record time-series data point | $0.02 |
+| `get_signals` | Query metrics over time | $0.02 |
+| `set_regime` | Label entity state | $0.01 |
+| `get_regime` | Check entity state | $0.01 |
+| `causal_parents` | What drives this entity | $0.03 |
+| `causal_children` | What this entity drives | $0.03 |
+| `causal_path` | Highest-weight causal path | $0.05 |
+| `simulate` | Propagate shock/boost through graph | $0.10 |
+| `get_graph_stats` | Entity/relationship counts | Free |
+
+The graph is **persistent** — stored in FalkorDB on our infrastructure. Your agent's research accumulates across sessions. The more you use Forage, the smarter it gets.
 
 ---
 
-## How Forage MCP is different
+## Email Verification — How It Actually Works
 
-- **Built for revenue outcomes** — tools are designed around leads, clients, and market intelligence, not just raw HTML
-- **Powered by Apify** — runs on a mature web-scraping platform with battle-tested crawlers and proxy infrastructure
-- **MCP-native** — exposes all capabilities as Model Context Protocol tools, so Claude, LangGraph, and other agents can use them with minimal setup
-- **Persistent knowledge graph** — every tool call automatically feeds a private knowledge graph that accumulates intelligence over time
+We don't just guess email patterns. Each `find_emails` call runs a **4-step verification pipeline**:
+
+### Step 1: Pattern Discovery
+Scrape the target domain for email patterns (e.g., `firstname.lastname@domain.com`). Extract from:
+- Contact pages, footers, team pages
+- Press releases, blog author pages
+- WHOIS records, SSL certificates
+
+### Step 2: Candidate Generation
+Generate candidate emails using discovered patterns + LinkedIn data. Cross-reference with:
+- Company employee listings (if public)
+- Job postings with contact info
+- Conference speaker lists
+
+### Step 3: SMTP Verification
+For each candidate, we perform an SMTP handshake check:
+- Connect to the domain's mail server
+- Verify the recipient exists (`RCPT TO`)
+- Detect catch-all domains (score penalty)
+- Detect mailboxes that accept then bounce (honeypots)
+
+### Step 4: Confidence Scoring
+Each email gets a confidence score (0-100) based on:
+
+| Signal | Weight | Example |
+|--------|--------|---------|
+| SMTP accept | 40% | Mail server accepted RCPT TO |
+| Pattern match | 25% | Matches known company format |
+| LinkedIn match | 20% | Name matches LinkedIn profile |
+| Source corroboration | 15% | Found on multiple public sources |
+
+**Return format:**
+```json
+{
+  "email": "sarah.chen@stripe.com",
+  "name": "Sarah Chen",
+  "title": "VP of Sales",
+  "seniority": "vp",
+  "department": "sales",
+  "linkedin": "linkedin.com/in/sarahchen",
+  "confidence": 94,
+  "verified": true,
+  "verification_steps": ["smtp_accepted", "linkedin_match", "pattern_match"]
+}
+```
+
+### What "verified" means
+- **Confidence 90-100**: SMTP accepted + LinkedIn match + multiple sources. High deliverability.
+- **Confidence 70-89**: SMTP accepted or strong pattern match. Good for outreach.
+- **Confidence 50-69**: Pattern-based with partial verification. Use with caution.
+- **Below 50**: Not returned (filtered out).
+
+This is not a simple mailserver check. It's a multi-source corroboration pipeline that other MCP servers don't offer.
 
 ---
 
-## Key capabilities
-
-Forage MCP gives your agents these core capabilities:
-
-- **Real-time web search** — multi-source search returning ranked, deduplicated results with titles, URLs, and snippets
-- **Page scraping** — extract clean content from any URL as markdown
-- **Company intelligence** — get website summary, contacts, and social profiles for any domain
-- **Verified B2B emails** — discover verified email addresses with confidence scores, titles, and LinkedIn profiles
-- **Lead discovery** — find companies and local businesses matching a niche and location with phone, website, rating
-- **Knowledge graph** — automatically remembers everything your agent researches for future queries
-- **Actor gateway** — access 1000+ Apify actors directly through Forage tools
-- **Skills** — multi-step workflows that return complete intelligence packages (dossiers, decision makers, outbound lists, competitive intel)
-
----
-
-## Pricing model
-
-Pay per tool call. No subscription. No minimum. Each tool returns its cost in the response.
+## Web Intelligence Tools
 
 ### Core Tools
 
-| Capability | Tool | Price |
-|------------|------|-------|
-| Web search | `search_web` | $0.03 per call |
-| Page scraping | `scrape_page` | $0.07 per call |
-| Company info | `get_company_info` | $0.08 per call |
-| Email discovery | `find_emails` | $0.10 per call |
-| Local leads | `find_local_leads` | $0.15 per call |
-| B2B leads | `find_leads` | $0.25 per 100 leads |
-
-### Knowledge Graph
-
-| Capability | Tool | Price |
-|------------|------|-------|
-| Query knowledge | `query_knowledge` | $0.02 per query |
-| Enrich entity | `enrich_entity` | $0.03 per call |
-| Find connections | `find_connections` | $0.05 per call |
-| Graph stats | `get_graph_stats` | Free |
+| Tool | What it does | Price | Why this price |
+|------|--------------|-------|----------------|
+| `search_web` | Multi-source search, deduplicated, ranked | $0.03 | Aggregates Brave, Bing, DuckDuckGo + dedup + rank. Cheaper than calling each API separately ($0.03 total vs $0.06+ if you called 2 search APIs) |
+| `scrape_page` | Extract clean markdown from any URL | $0.07 | Includes proxy rotation, JavaScript rendering, anti-bot bypass |
+| `get_company_info` | Domain → full company profile | $0.08 | Aggregates 5+ data sources: website, LinkedIn, Crunchbase patterns, social profiles |
+| `find_emails` | Verified B2B emails with LinkedIn | $0.10 | 4-step pipeline above |
+| `find_local_leads` | Local businesses by niche + location | $0.15 | Google Maps + enrichment + phone/website extraction |
+| `find_leads` | B2B leads by title/industry/location | $0.25/100 leads | That's $0.0025 per lead. Try finding 100 leads manually. |
 
 ### Skills (Multi-Step Workflows)
 
-| Skill | Tool | Price | Returns |
-|-------|------|-------|---------|
-| Company dossier | `skill_company_dossier` | $0.50 | Full company profile, 10 contacts |
-| Prospect company | `skill_prospect_company` | $0.75 | 15 decision makers with emails |
-| Outbound list | `skill_outbound_list` | $3.50 | 100 leads ready for CRM |
-| Local market map | `skill_local_market_map` | $0.80 | 60 local businesses |
-| Decision maker finder | `skill_decision_maker_finder` | $1.00 | 20 contacts sorted by seniority |
-| Competitor intel | `skill_competitor_intel` | $0.80 | Pricing, features, reviews |
-| Competitor ads | `skill_competitor_ads` | $0.65 | Active ads, copy, landing pages |
-| Job signals | `skill_job_signals` | $0.55 | Hiring trends, job listings |
-| Tech stack | `skill_tech_stack` | $0.45 | Technologies used |
-| Funding intel | `skill_funding_intel` | $0.70 | Funding rounds, investors |
-| Social proof | `skill_social_proof` | $0.55 | Reviews, ratings |
-| Market map | `skill_market_map` | $1.20 | All competitors in a market |
+Skills chain multiple tools into one call, returning ready-to-use intelligence packages:
 
-### Actor Gateway
-
-| Tool | Price |
-|------|-------|
-| `list_verified_actors` | $0.01 per call |
-| `get_actor_schema` | $0.01 per call |
-| `call_actor` | Actor cost + 25% |
+| Skill | Price | Returns |
+|-------|-------|---------|
+| `skill_company_dossier` | $0.50 | Full company profile + 10 contacts with emails |
+| `skill_prospect_company` | $0.75 | 15 decision makers sorted by seniority + emails |
+| `skill_outbound_list` | $3.50 | 100 verified leads ready for CRM import |
+| `skill_local_market_map` | $0.80 | Up to 60 local businesses with contact info |
+| `skill_decision_maker_finder` | $1.00 | 20 decision makers by seniority tier |
+| `skill_competitor_intel` | $0.80 | Pricing, features, reviews, positioning |
+| `skill_competitor_ads` | $0.65 | Active ad copy, landing pages, platforms |
+| `skill_job_signals` | $0.55 | Hiring trends, open roles, expansion signals |
+| `skill_tech_stack` | $0.45 | Technologies used with confidence scores |
+| `skill_funding_intel` | $0.70 | Funding rounds, investors, valuation estimates |
+| `skill_social_proof` | $0.55 | Reviews, ratings, testimonials aggregated |
+| `skill_market_map` | $1.20 | Complete competitor landscape for a market |
 
 ---
 
-## How to connect Forage MCP to your agent
+## Why Forage over other MCP search tools?
+
+| Capability | Forage | Brave Search MCP | Apify MCP | AgentQL |
+|------------|--------|------------------|-----------|---------|
+| Web search | ✓ | ✓ | ✗ | ✗ |
+| Page scraping | ✓ | ✗ | ✓ | ✓ |
+| Email discovery | ✓ (4-step verified) | ✗ | ✗ | ✗ |
+| B2B leads | ✓ | ✗ | Partial | ✗ |
+| Company intelligence | ✓ | ✗ | Partial | ✗ |
+| Local businesses | ✓ | ✗ | ✓ | ✗ |
+| **Persistent knowledge graph** | ✓ | ✗ | ✗ | ✗ |
+| **Provenance & claims** | ✓ | ✗ | ✗ | ✗ |
+| **Causal analysis** | ✓ | ✗ | ✗ | ✗ |
+| **Time-series signals** | ✓ | ✗ | ✗ | ✗ |
+| Multi-step skills | ✓ (12 skills) | ✗ | ✗ | ✗ |
+| Actor gateway (1000+) | ✓ | ✗ | ✓ | ✗ |
+
+**The knowledge graph is the differentiator.** Other tools give you data. Forage gives you *accumulated intelligence*. Every search, every email lookup, every company profile feeds your private graph. After a week of use, your agent knows more about your market than any single search ever could.
+
+---
+
+## Quick Start
 
 ### 1. Get Your API Token
 
 Go to [Apify Console → Settings → Integrations](https://console.apify.com/account/integrations) and copy your Personal API Token.
 
-### 2. Add to Your MCP Client
+### 2. Connect to Claude / Cursor / n8n
 
-#### Claude Desktop
-
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json`):
 
 ```json
 {
@@ -124,202 +200,153 @@ Go to [Apify Console → Settings → Integrations](https://console.apify.com/ac
     "forage": {
       "command": "npx",
       "args": [
-        "-y",
-        "mcp-remote",
-        "https://ernesta-labs--forage.apify.actor",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_TOKEN"
+        "-y", "mcp-remote",
+        "https://mcamarketing--forage.apify.actor",
+        "--header", "Authorization: Bearer YOUR_APIFY_TOKEN"
       ]
     }
   }
 }
 ```
 
-#### Claude Code (CLI)
-
-Add to `.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "forage": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://ernesta-labs--forage.apify.actor",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_TOKEN"
-      ]
-    }
-  }
-}
-```
-
-#### Cursor / Windsurf
+**Cursor / Windsurf:**
 
 ```json
 {
   "forage": {
     "command": "npx",
     "args": [
-      "-y",
-      "mcp-remote",
-      "https://ernesta-labs--forage.apify.actor",
-      "--header",
-      "Authorization: Bearer YOUR_APIFY_TOKEN"
+      "-y", "mcp-remote",
+      "https://mcamarketing--forage.apify.actor",
+      "--header", "Authorization: Bearer YOUR_APIFY_TOKEN"
     ]
   }
 }
 ```
 
-### 3. Restart Your Client
+**n8n / LangGraph / Custom:** Connect to the SSE endpoint at `https://mcamarketing--forage.apify.actor` with your Apify token in the Authorization header.
 
-Restart the application. Forage tools appear in the tool list.
+### 3. System Prompt (Optional)
 
-### 4. Tell Your Agent When to Use Forage
+Add to your agent's system prompt:
 
-Add this to your system prompt:
-
-> Use Forage MCP when you need live web data, company information, verified emails, or lead lists. Use Claude's built-in capabilities for general knowledge or simple queries. Each Forage tool call costs money (shown in responses), so combine operations when possible.
+> When you need live web data, company info, verified emails, or lead lists, use Forage tools. Each call costs money (shown in responses), so batch operations when possible. Your knowledge graph persists across sessions — check it first before making new web calls.
 
 ---
 
 ## Examples
 
-### Example: Find verified emails for a company
+### Find 20 HVAC leads in Dallas
 
-Goal: Get contact emails for people at stripe.com.
-
-1. Call `find_emails` with:
-   - `domain`: `"stripe.com"`
-   - `limit`: `10`
-
-2. The tool returns up to 10 verified contacts with:
-   - name, email, title, seniority, department
-   - LinkedIn profile URL
-   - confidence score (0-100)
-
-3. Example response:
-```json
-{
-  "domain": "stripe.com",
-  "emails_found": 10,
-  "emails": [
-    {
-      "name": "Sarah Chen",
-      "email": "sarah.chen@stripe.com",
-      "title": "VP Sales",
-      "seniority": "vp",
-      "department": "sales",
-      "linkedin": "linkedin.com/in/sarahchen",
-      "confidence": 94
-    }
-  ],
-  "cost_usd": 0.10
-}
+```
+Call: find_leads
+Params: { "industry": "HVAC", "location": "Dallas, TX", "limit": 20 }
+Returns: 20 companies with name, phone, website, email, address
+Cost: $0.05
 ```
 
-### Example: Generate outbound leads
+### Get decision makers at a prospect
 
-Goal: Find 100 marketing directors at SaaS companies in the US.
-
-1. Call `skill_outbound_list` with:
-   - `job_title`: `"Marketing Director"`
-   - `location`: `"United States"`
-   - `industry`: `"SaaS"`
-
-2. The tool returns 100 leads with:
-   - name, title, company, email
-   - email verification status
-   - LinkedIn profile
-   - company size
-
-3. Example response:
-```json
-{
-  "leads_found": 100,
-  "leads": [
-    {
-      "name": "Alex Rivera",
-      "title": "Director of Marketing",
-      "company": "Notion",
-      "email": "alex.rivera@notion.so",
-      "email_verified": true,
-      "linkedin": "linkedin.com/in/alexrivera",
-      "company_size": "500-1000"
-    }
-  ],
-  "cost_usd": 3.50
-}
+```
+Call: skill_prospect_company
+Params: { "domain": "stripe.com" }
+Returns: 15 decision makers with title, email, LinkedIn, seniority
+Cost: $0.75
 ```
 
-### Example: Research a competitor
+### Build a local market map
 
-Goal: Get complete competitive intelligence on a company.
+```
+Call: skill_local_market_map
+Params: { "business_type": "dentist", "location": "London, UK" }
+Returns: 60 dentists with address, phone, website, rating, reviews
+Cost: $0.80
+```
 
-1. Call `skill_company_dossier` with:
-   - `domain`: `"notion.so"`
+### Track a company's hiring over time
 
-2. Call `skill_tech_stack` with:
-   - `domain`: `"notion.so"`
+```
+Call: add_signal
+Params: { "entity": "Acme Corp", "metric": "job_postings", "value": 45 }
+... repeat weekly ...
+Call: get_signals
+Params: { "entity": "Acme Corp", "metric": "job_postings" }
+Returns: Time-series of job postings — hiring trend visible
+```
 
-3. Call `skill_job_signals` with:
-   - `company_name`: `"Notion"`
+### Find who influenced a deal
 
-4. Total cost: $1.70 for comprehensive company intelligence
-
-### Example: Find local businesses
-
-Goal: Find all dentists in London.
-
-1. Call `skill_local_market_map` with:
-   - `business_type`: `"dentist"`
-   - `location`: `"London, UK"`
-
-2. The tool returns up to 60 businesses with:
-   - name, address, phone, website
-   - rating, review count, hours
-
-3. Example response:
-```json
-{
-  "leads_found": 47,
-  "leads": [
-    {
-      "name": "Peel Dental Studio",
-      "address": "1 Peel Moat Rd, Stockport",
-      "phone": "0161 432 1133",
-      "website": "https://peeldentalstudio.co.uk",
-      "rating": 4.9,
-      "review_count": 312
-    }
-  ],
-  "cost_usd": 0.80
-}
+```
+Call: find_connections
+Params: { "from": "Your Company", "to": "Acme Corp" }
+Returns: Path through shared connections, events, technologies
 ```
 
 ---
 
-## Limitations and safeguards
+## Architecture
 
-- **Rate limits:** Apify enforces rate limits per account
-- **Cost controls:** Set spending limits in Apify Console → Billing
-- **Per-call limits:** Use `max_cost_usd` parameter when calling actors
-- **Compliance:** Users are responsible for ensuring their use cases comply with applicable laws and terms of service
-- **Data freshness:** Web data is fetched live; some sites may block scraping
-- **Email accuracy:** Email verification provides confidence scores but is not 100% guaranteed
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    YOUR AI AGENT (Claude, Cursor, n8n)      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ MCP Protocol
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    FORAGE MCP SERVER (Apify)                 │
+│  ┌────────────┐  ┌────────────┐  ┌──────────────────────┐  │
+│  │ Web Search │  │   Scraper  │  │  Email Discovery     │  │
+│  │ (3 engines)│  │ (rendered) │  │  (4-step pipeline)   │  │
+│  └─────┬──────┘  └─────┬──────┘  └──────────┬───────────┘  │
+│        └───────────────┼────────────────────┘              │
+│                        ▼                                    │
+│              ┌─────────────────┐                            │
+│              │  Graph Client   │                            │
+│              └────────┬────────┘                            │
+└───────────────────────┼────────────────────────────────────┘
+                        │ HTTPS
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│                FORAGE GRAPH API (Railway)                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              FalkorDB (Redis-compatible)              │  │
+│  │  Entities ──── RELATES ────▶ Entities                │  │
+│  │  Claims (provenance)                                  │  │
+│  │  Signals (time-series)                                │  │
+│  │  Regimes (state tracking)                             │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Free trial
+## Pricing
 
-New Apify accounts include $5 of platform credit to try Forage. Set spending limits in [Apify Console → Billing](https://console.apify.com/billing).
+Pay per tool call. No subscription. No minimum. Every response includes the cost.
+
+| Your Apify spend | Your Forage cost | Ratio |
+|-----------------|------------------|-------|
+| $1 | ~$0.75 | 25% markup |
+| $10 | ~$7.50 | 25% markup |
+| $100 | ~$75 | 25% markup |
+
+The 25% markup covers: proxy infrastructure, knowledge graph storage, email verification pipeline, multi-engine search aggregation, and ongoing maintenance.
+
+**Free trial:** New Apify accounts get $5 platform credit. Try Forage risk-free.
 
 ---
 
-## Support
+## Limitations
 
-- **GitHub Issues:** [github.com/ernestalabs/forage](https://github.com/ernestalabs/forage)
-- **Apify Support:** Contact through [Apify Console](https://console.apify.com)
-- **Email:** support@ernesta.com
+- **Some sites block scraping** — we use proxies + JS rendering, but some sites (LinkedIn, closed social networks) are protected
+- **Email accuracy ≠ 100%** — confidence scores reflect real verification, but email addresses can change
+- **Knowledge graph is persistent but not portable** — data lives on our FalkorDB instance (not exported yet)
+- **Rate limits** — Apify enforces per-account limits; Forage doesn't add extra limits on top
+
+---
+
+## Support & Links
+
+- **GitHub Issues:** [github.com/mcamarketing/web-intelligence-mcp/issues](https://github.com/mcamarketing/web-intelligence-mcp/issues)
+- **Apify Actor:** [mcamarketing/forage](https://apify.com/mcamarketing/forage)
+- **Documentation:** See [QUICKSTART.md](./QUICKSTART.md) and [EXAMPLES.md](./EXAMPLES.md)

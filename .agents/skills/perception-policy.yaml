@@ -1,0 +1,46 @@
+# perception-policy.yaml
+# NemoClaw/OpenShell network policy for perception graph agents
+# 
+# Enforces: agents connect ONLY to Forage MCP and Scrapling bridge
+# No direct FalkorDB access, no other external connections
+
+network:
+  outbound_allow:
+    # Forage MCP endpoint (primary)
+    - https://ernesta-labs--forage.apify.actor
+    # Scrapling bridge (free scraping)
+    - http://scrapling:8001
+    # MiroFish simulation (simulation_seeder only)
+    - http://mirofish:7000
+  outbound_deny: all_others
+
+filesystem:
+  read:
+    - /templates       # Agent YAML templates (read-only)
+    - /tmp/agent-work  # Working directory
+  write:
+    - /tmp/agent-work  # Only allowed write location
+
+seccomp:
+  profile: strict
+  # Allowed syscalls defined in separate seccomp profile
+
+landlock:
+  enabled: true
+  # Filesystem restrictions enforced by Landlock LSM
+
+raw_sockets:
+  deny: true
+
+resource_limits:
+  memory_limit_mb: 512
+  cpu_limit: 0.5
+  network_mode: perception-net
+
+# Agent environment variables injected at spawn
+env_inject:
+  - APIFY_TOKEN
+  - FORAGE_ENDPOINT
+  - AGENT_ROLE
+  - AGENT_ID
+  - SESSION_BUDGET_USD

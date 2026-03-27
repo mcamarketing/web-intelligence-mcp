@@ -1,0 +1,113 @@
+# narrative_tracker.agent
+# Open Agent Spec - Narrative Tracker Agent
+# 
+# Role: Track narrative flows across platforms
+# Domain: Reddit sentiment, social media, news discourse
+# 
+# Skills:
+#   - add_signal (narrative_velocity, sentiment)
+#   - add_claim (NARRATIVE_FLOWS edges)
+#   - set_regime (track narrative regime shifts)
+#   - query_knowledge (cache-first)
+#   - search_web (trend detection)
+# 
+# Fitness metric: narrative_signal_freshness
+# Clone threshold: 0.85, Kill threshold: 0.30
+
+name: narrative_tracker
+version: "1.0"
+role: Narrative Tracker
+description: |
+  Tracks narrative flows across platforms and languages.
+  Monitors sentiment velocity and reach. Detects regime shifts
+  in public discourse.
+
+mcp:
+  endpoint: https://ernesta-labs--forage.apify.actor
+  auth_header: "Authorization: Bearer ${APIFY_TOKEN}"
+  cache_first: true
+  session_budget_usd: ${SESSION_BUDGET_USD}
+  tools: [add_signal, add_claim, set_regime, query_knowledge, search_web, get_signals]
+
+objectives:
+  - Track sentiment velocity per topic/region
+  - Monitor narrative reach across platforms
+  - Detect regime shifts (normal → stressed → pre_tipping)
+  - Write NARRATIVE_FLOWS edges with velocity/reach
+
+parameters:
+  temperature: 0.4
+  max_tokens: 2048
+  session_budget_usd: 0.30
+
+capabilities:
+  - add_signal
+  - add_claim
+  - set_regime
+  - query_knowledge
+  - search_web
+  - get_signals
+
+data_sources:
+  - name: Reddit
+    url: https://www.reddit.com/
+    purpose: Multi-language subreddit sentiment
+    update_frequency: continuous
+  - name: GDELT
+    url: https://www.gdeltproject.org/
+    purpose: News narrative tracking
+    update_frequency: 15min
+  - name: Common Crawl
+    url: https://commoncrawl.org/
+    purpose: Web discourse analysis
+    update_frequency: continuous
+
+output_schema:
+  narrative_signals:
+    - topic: string         # e.g., "russian fashion", "import sanctions"
+      velocity: float       # 0-1 rate of change
+      reach: float          # 0-1 audience size
+      sentiment: float     # -1 to 1
+      platforms: string[]    # where detected
+      timestamp: string
+
+  narrative_edges:
+    - source: string        # e.g., "Russia"
+      target: string        # e.g., "Western fashion"
+      relation: NARRATIVE_FLOWS
+      attributes:
+        velocity: float
+        reach: float
+        sentiment: float
+      evidence: string      # URL or source
+
+constraints:
+  - Use VADER or equivalent for sentiment
+  - Detect language with langdetect
+  - Write velocity signal every 15min minimum
+  - Set regime when velocity crosses thresholds
+
+fitness_calculation: |
+  fitness = (
+    (signals_fresh_last_1h / 10) * 0.4 +
+    (regime_shifts_detected * 0.2) +
+    (cross_platform_narratives / total_narratives) * 0.4
+  )
+
+execution_example: |
+  Mission: "Track Russian fashion narrative"
+  
+  Steps:
+  1. Query reddit for r/russia, r/russianfashion (last 100 posts)
+  2. Calculate mean sentiment, velocity (posts/hour), reach (total upvotes)
+  3. add_signal("Russian fashion", "narrative_velocity", velocity)
+  4. add_signal("Russian fashion", "narrative_reach", reach)
+  5. add_claim("Russia", "NARRATIVE_FLOWS", "Western fashion",
+      {velocity, reach, sentiment}, "reddit", 0.7)
+  6. If velocity > 0.8: set_regime("Russian fashion", "pre_tipping")
+
+test_cases:
+  - mission: "Track sanctions narrative in Russia"
+    expected_roles: [narrative_tracker]
+    expected_signals: velocity, reach, sentiment
+    expected_regime: triggered at threshold

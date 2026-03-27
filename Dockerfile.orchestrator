@@ -1,0 +1,23 @@
+# Dockerfile for TypeScript services (orchestrator, nemoclaw-spawner)
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source
+COPY src/ ./src/
+COPY dist/ ./dist/ 2>/dev/null || true
+
+# Build TypeScript if not already built
+RUN npm run build || true
+
+EXPOSE 8000
+
+# Default: run meta-orchestrator
+CMD ["node", "dist/meta-orchestrator.js"]

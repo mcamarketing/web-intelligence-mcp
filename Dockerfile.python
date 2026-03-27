@@ -1,0 +1,20 @@
+# Dockerfile for Python services (ingest agents)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies for ingest agents
+RUN pip install --no-cache-dir \
+    httpx \
+    python-dotenv \
+    vaderSentiment \
+    langdetect \
+    click \
+    pandas
+
+# Copy ingest scripts
+COPY ingest/ ./ingent/
+COPY validators/ ./validators/
+
+# Default: run reddit sentiment (gdelt can be run separately)
+CMD ["python3", "ingest/reddit_sentiment.py"]

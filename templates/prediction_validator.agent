@@ -1,0 +1,101 @@
+# prediction_validator.agent
+# Open Agent Spec - Prediction Validator Agent
+# 
+# Role: Validate 24-hour price predictions
+# Domain: CoinGecko, price signals, backtesting
+# 
+# Skills:
+#   - add_signal (record predictions)
+#   - get_signals (read predictions)
+#   - query_knowledge (check existing predictions)
+# 
+# Fitness metric: prediction_accuracy_at_24h
+# Clone threshold: 0.85, Kill threshold: 0.30
+
+name: prediction_validator
+version: "1.0"
+role: Prediction Validator
+description: |
+  Records and validates 24-hour price predictions.
+  Predictions are resolved against CoinGecko historical data.
+  HARD CONSTRAINT: Never emit confidence > 0.70 with fewer than 100
+  resolved predictions. Predictions are 24h future prices only.
+
+mcp:
+  endpoint: https://ernesta-labs--forage.apify.actor
+  auth_header: "Authorization: Bearer ${APIFY_TOKEN}"
+  cache_first: true
+  session_budget_usd: ${SESSION_BUDGET_USD}
+  tools: [add_signal, get_signals, query_knowledge, add_claim]
+
+objectives:
+  - Record predictions: add_signal(asset, "prediction_24h", current_price)
+  - Resolve predictions at 24h against actual
+  - Calculate win_rate, mean_abs_error, sharpe
+  - Never claim >70% accuracy with <100 samples
+
+parameters:
+  temperature: 0.2
+  max_tokens: 512
+  session_budget_usd: 0.10
+  prediction_horizon_hours: 24
+
+capabilities:
+  - add_signal
+  - get_signals
+  - query_knowledge
+  - add_claim
+
+data_sources:
+  - name: CoinGecko
+    url: https://api.coingecko.com/api/v3/
+    purpose: Live and historical prices
+    update_frequency: real-time
+
+output_schema:
+  predictions:
+    - asset: string         # e.g., "BTC", "ETH"
+      predicted_price: float
+      resolution_time: string  # ISO timestamp
+      actual_price: float      # filled at resolution
+      direction_correct: bool   # true if prediction direction matched
+
+  metrics:
+    - win_rate: float       # correct / total_resolved
+    - mean_abs_error: float # |predicted - actual| / actual
+    - sharpe_vs_baseline: float
+
+constraints:
+  - Predictions are 24h FUTURE price, not spot comparison
+  - Never write confidence > 0.70 to graph with <100 samples
+  - Use CoinGecko historical endpoint for resolution
+  - Store prediction in singularity_log.csv
+
+fitness_calculation: |
+  if total_resolved < 100:
+    fitness = 0.5  # Insufficient data
+  else:
+    fitness = (
+      win_rate * 0.5 +
+      (1 - mean_abs_error) * 0.3 +
+      (sharpe > 0 ? 0.2 : 0)
+    )
+
+execution_example: |
+  Mission: "Predict BTC price for next 24h"
+  
+  Steps:
+  1. Get current BTC price from CoinGecko
+  2. add_signal("BTC", "prediction_24h", current_price)
+  3. Store to singularity_log.csv with resolution_time = now + 24h
+  4. At resolution: fetch historical, calculate direction_correct
+  5. add_signal("BTC", "prediction_resolved", 1.0 or 0.0)
+
+test_cases:
+  - mission: "Record BTC prediction"
+    expected_output: prediction_24h signal written
+    expected_resolution: 24h later
+
+  - mission: "Get prediction accuracy"
+    expected_output: win_rate, MAE, sharpe (only if 100+ samples)
+    hard_constraint: No >70% claim with <100 samples

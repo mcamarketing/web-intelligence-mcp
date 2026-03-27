@@ -1,0 +1,104 @@
+# identity_modeller.agent
+# Open Agent Spec - Identity Modeller Agent
+# 
+# Role: Map identity groups and cultural affiliations
+# Domain: World Values Survey, Pew Research, demographic data
+# 
+# Skills:
+#   - enrich_entity (create IdentityGroup nodes)
+#   - add_claim (BELONGS_TO edges)
+#   - causal_parents (what drives identity)
+#   - query_knowledge (cache-first)
+# 
+# Fitness metric: wvs_variable_coverage_per_nation
+# Clone threshold: 0.85, Kill threshold: 0.30
+
+name: identity_modeller
+version: "1.0"
+role: Identity Modeller
+description: |
+  Maps identity groups and cultural affiliations from survey data.
+  Reads World Values Survey and Pew Research to create IdentityGroup
+  nodes and BELONGS_TO edges.
+
+mcp:
+  endpoint: https://ernesta-labs--forage.apify.actor
+  auth_header: "Authorization: Bearer ${APIFY_TOKEN}"
+  cache_first: true
+  session_budget_usd: ${SESSION_BUDGET_USD}
+  tools: [query_knowledge, enrich_entity, add_claim, get_claims, add_signal, causal_parents]
+
+objectives:
+  - Map national identity groups from WVS data
+  - Track religious affiliation distributions
+  - Identify cultural value clusters by region
+  - Create BELONGS_TO edges with strength attributes
+
+parameters:
+  temperature: 0.3
+  max_tokens: 2048
+  session_budget_usd: 0.20
+
+capabilities:
+  - enrich_entity
+  - add_claim
+  - causal_parents
+  - query_knowledge
+  - get_signals
+
+data_sources:
+  - name: World Values Survey
+    url: https://www.worldvaluessurvey.org/
+    purpose: Cultural values, identity, religion by country/region
+    update_frequency: wave-based (5-7 years)
+  - name: Pew Global Attitudes
+    url: https://www.pewresearch.org/global/
+    purpose: Religious affiliation, favorability scores
+    update_frequency: periodic
+
+output_schema:
+  identity_groups:
+    - name: string           # e.g., "Russian Muslims", "Tatar Identity"
+      type: IdentityGroup
+      properties:
+        region: string       # nation/region
+        religion: string     # primary faith
+        strength: float      # 0-1 belonging strength
+        survey_source: string
+        wave: string         # e.g., "WVS7"
+
+  belongs_to_edges:
+    - person: string        # or nation/region
+      identity_group: string
+      relation: BELONGS_TO
+      attributes:
+        strength: float     # 0-1
+        context: string      # e.g., "religious", "ethnic", "political"
+
+constraints:
+  - Use WVS wave identifier in data
+  - Confidence based on sample size
+  - No fabricated identity claims
+
+fitness_calculation: |
+  fitness = (
+    (unique_nations_mapped / total_nations) * 0.4 +
+    (identity_groups_created / 10) * 0.4 +
+    (claims_with_wvs_source / total_claims) * 0.2
+  )
+
+execution_example: |
+  Mission: "Map religious identity in Tatarstan"
+  
+  Steps:
+  1. Query WVS data for Tatarstan (region code: RU-TT)
+  2. Extract religious affiliation percentages
+  3. For each group: enrich_entity(group_name, "IdentityGroup", {religion, region})
+  4. add_claim("Tatarstan", "BELONGS_TO", "Tatar Muslims", {strength: 0.78}, "WVS7", 0.8)
+  5. add_signal("Tatarstan", "religious_identity_strength", 0.78)
+
+test_cases:
+  - mission: "Map religious identity in Russia"
+    expected_roles: [identity_modeller]
+    expected_groups: 5+
+    confidence_threshold: 0.6

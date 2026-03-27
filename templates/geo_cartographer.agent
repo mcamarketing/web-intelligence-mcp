@@ -1,0 +1,106 @@
+# geo_cartographer.agent
+# Open Agent Spec - Geographic Cartographer Agent
+# 
+# Role: Build geographic node hierarchy
+# Domain: OpenStreetMap, WorldPop, geospatial data
+# 
+# Skills:
+#   - enrich_entity (create geographic nodes)
+#   - add_claim (LOCATED_IN edges)
+#   - query_knowledge (cache-first)
+# 
+# Fitness metric: new_geographic_nodes_per_session
+# Clone threshold: 0.85, Kill threshold: 0.30
+# Note: Primarily uses OSM ingest via :8001/ingest/osm
+
+name: geo_cartographer
+version: "1.0"
+role: Geographic Cartographer
+description: |
+  Builds geographic node hierarchy from Nation to Village.
+  Uses OpenStreetMap for POI data and WorldPop for density.
+  Creates LOCATED_IN edges between geographic entities.
+
+mcp:
+  endpoint: https://ernesta-labs--forage.apify.actor
+  auth_header: "Authorization: Bearer ${APIFY_TOKEN}"
+  cache_first: true
+  session_budget_usd: ${SESSION_BUDGET_USD}
+  tools: [enrich_entity, add_claim, get_claims, query_knowledge, add_signal]
+
+objectives:
+  - Create Nation nodes from country codes
+  - Create Region nodes (states, provinces)
+  - Create City nodes with population data
+  - Create District nodes (city sub-divisions)
+  - Create Village nodes (rural settlements)
+  - Link all with LOCATED_IN edges
+
+parameters:
+  temperature: 0.3
+  max_tokens: 1024
+  session_budget_usd: 0.20
+
+capabilities:
+  - enrich_entity
+  - add_claim
+  - query_knowledge
+  - get_signals
+  - add_signal
+
+data_sources:
+  - name: OpenStreetMap
+    url: https://www.openstreetmap.org/
+    purpose: Buildings, roads, POI at village level
+    update_frequency: continuous
+  - name: WorldPop
+    url: https://www.worldpop.org/
+    purpose: Population density at 100m resolution
+    update_frequency: annual
+
+output_schema:
+  geographic_nodes:
+    - name: string           # e.g., "Kazan", "Tatarstan", "Russia"
+      type: Nation | Region | City | District | Village
+      properties:
+        population: number
+        area_km2: number
+        coordinates: {lat: float, lon: float}
+        osm_id: string (optional)
+
+  located_in_edges:
+    - child: string         # e.g., "Kazan"
+      parent: string        # e.g., "Tatarstan"
+      relation: LOCATED_IN
+      attributes:
+        since: string       # when relationship established
+
+constraints:
+  - Use OSM IDs for verification
+  - Populate coordinates from OSM/Wikipedia
+  - Use WorldPop for population where available
+  - Create LOCATED_IN edges for every hierarchy level
+
+fitness_calculation: |
+  fitness = (
+    (new_nodes_created / 50) * 0.5 +
+    (hierarchy_levels_complete / 5) * 0.3 +
+    (population_data_populated / new_nodes) * 0.2
+  )
+
+execution_example: |
+  Mission: "Map Russia → Tatarstan → Kazan"
+  
+  Steps:
+  1. Query existing: query_knowledge("Russia")
+  2. enrich_entity("Russia", "Nation", {population: 144000000, area: 17098242})
+  3. enrich_entity("Tatarstan", "Region", {population: 3900000, parent: "Russia"})
+  4. add_claim("Tatarstan", "LOCATED_IN", "Russia", "constituent republic", "osm", 1.0)
+  5. enrich_entity("Kazan", "City", {population: 1250000, region: "Tatarstan"})
+  6. add_claim("Kazan", "LOCATED_IN", "Tatarstan", "capital", "osm", 1.0)
+
+test_cases:
+  - mission: "Map Russian cities"
+    expected_roles: [geo_cartographer]
+    expected_hierarchy: Nation → Region → City
+    confidence_threshold: 0.8

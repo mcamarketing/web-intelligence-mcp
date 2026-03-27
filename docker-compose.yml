@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────────────────────────
+  # Scrapling Bridge (Free anti-detection scraper)
+  # ─────────────────────────────────────────────────────────────────────
+  scrapling:
+    build:
+      context: .
+      dockerfile: Dockerfile.scrapling
+    ports:
+      - "8001:8001"
+    env:
+      - APIFY_TOKEN=${APIFY_TOKEN}
+      - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
+      - SCRAPLING_HEADLESS=true
+    networks:
+      - perception-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Meta Orchestrator (Agent swarm management)
+  # ─────────────────────────────────────────────────────────────────────
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    command: node dist/meta-orchestrator.js
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env:
+      - APIFY_TOKEN=${APIFY_TOKEN}
+      - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
+      - MIROFISH_HOST=http://mirofish:7000
+      - SCRAPLING_URL=http://scrapling:8001
+    networks:
+      - perception-net
+    restart: unless-stopped
+    depends_on:
+      - scrapling
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────────────
+  # MiroFish OASIS (Social simulation engine)
+  # ─────────────────────────────────────────────────────────────────────
+  mirofish:
+    image: mirofish/oasis:latest
+    ports:
+      - "7000:7000"
+    networks:
+      - perception-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────────────
+  # GDELT Ingest Agent (News event polling)
+  # ─────────────────────────────────────────────────────────────────────
+  gdelt-ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    command: python3 ingest/gdelt_agent.py
+    env:
+      - APIFY_TOKEN=${APIFY_TOKEN}
+      - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
+      - GDELT_INTERVAL=300
+      - GDELT_COUNTRY=Russia
+    networks:
+      - perception-net
+    restart: unless-stopped
+    depends_on:
+      - scrapling
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Reddit Sentiment Agent
+  # ─────────────────────────────────────────────────────────────────────
+  reddit-ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    command: python3 ingest/reddit_sentiment.py
+    env:
+      - APIFY_TOKEN=${APIFY_TOKEN}
+      - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
+      - REDDIT_SUBREDDITS=russia,ukraine,tatarstan,kazan
+      - POLL_INTERVAL=300
+    networks:
+      - perception-net
+    restart: unless-stopped
+    depends_on:
+      - scrapling
+
+networks:
+  perception-net:
+    driver: bridge
+
+# NOTE: No falkordb service. FalkorDB is on Railway, accessed only via
+# Forage MCP endpoint. Adding a local falkordb container would create
+# a split-brain. Do not add it.

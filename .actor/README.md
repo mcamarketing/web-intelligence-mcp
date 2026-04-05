@@ -27,23 +27,12 @@ Forage MCP is a Model Context Protocol server that gives AI agents capabilities 
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
-        "https://ernesta-labs--forage.apify.actor",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_TOKEN"
-      ]
-    }
-  }
-}
-```
-
-### SSE Transport (Legacy)
-
-```json
-{
-  "mcpServers": {
-    "forage": {
-      "url": "https://ernesta-labs--forage.apify.actor/sse"
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
+      }
     }
   }
 }

@@ -55,11 +55,12 @@ If the file doesn't exist, create it.
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
-        "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-      ]
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
     }
   }
 }
@@ -107,11 +108,12 @@ Or edit your settings file directly:
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
-        "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-      ]
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
     }
   }
 }
@@ -144,15 +146,18 @@ Or edit your Cursor config file directly.
 
 ```json
 {
-  "forage": {
-    "command": "npx",
-    "args": [
-      "-y",
-      "mcp-remote",
-      "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-      "--header",
-      "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-    ]
+  "mcpServers": {
+    "forage": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
+    }
   }
 }
 ```

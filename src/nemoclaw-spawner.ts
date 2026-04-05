@@ -60,6 +60,7 @@ async function getDocker() {
   
   try {
     // Dynamic import for dockerode
+    // @ts-ignore
     const { Docker } = await import('dockerode');
     docker = new Docker();
     await docker.ping();

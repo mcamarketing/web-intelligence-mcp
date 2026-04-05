@@ -26,7 +26,7 @@ mcp:
   auth_header: "Authorization: Bearer ${APIFY_TOKEN}"
   cache_first: true
   session_budget_usd: ${SESSION_BUDGET_USD}
-  tools: [enrich_entity, add_claim, get_claims, query_knowledge, add_signal]
+  tools: [query_knowledge, enrich_entity, find_connections, add_claim, get_claims, add_signal, get_signals, set_regime, get_regime, get_causal_parents, get_causal_children, search_web, scrape_page]
 
 objectives:
   - Create Nation nodes from country codes

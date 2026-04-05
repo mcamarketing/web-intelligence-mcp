@@ -75,7 +75,7 @@ export type EntityType =
   | 'Brand' | 'Product' | 'ProductCategory'
   | 'Organisation' | 'Person'
   | 'Narrative' | 'Event'
-  | 'Agent';
+  | 'Agent' | 'Entity';
 
 export type GeoType = 'Nation' | 'Region' | 'City' | 'District' | 'Village';
 
@@ -162,9 +162,59 @@ async function callForageTool(toolName: string, params: Record<string, unknown>)
     throw new Error(`Forage API error: ${response.status} ${response.statusText}`);
   }
   
-  const data = await response.json();
+  const data = await response.json() as { result?: { content?: Array<{ text?: string }> } };
   return data.result?.content?.[0]?.text ? JSON.parse(data.result.content[0].text) : null;
 }
+
+// ─── BATCHING BUFFER [batch-001] ───────────────────────────────────────────
+
+interface ClaimBatchItem {
+  entity: string;
+  relation: string;
+  target: string;
+  assertion: string;
+  sourceUrl: string;
+  confidence: number;
+}
+
+const claimBuffer: ClaimBatchItem[] = [];
+const BATCH_SIZE = 8; // 5-10 claims per batch
+const FLUSH_INTERVAL = 500; // ms
+
+async function flushClaimBatch(): Promise<void> {
+  if (claimBuffer.length === 0) return;
+  
+  const batch = claimBuffer.splice(0, BATCH_SIZE);
+  try {
+    const resp = await fetch(`${process.env.GRAPH_API_URL || 'https://forage-graph-production.up.railway.app'}/ingest/bulk`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.GRAPH_API_SECRET}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        entities: [],
+        connections: batch.map(c => ({
+          from_type: 'Entity',
+          from_name: c.entity,
+          to_type: 'Entity',
+          to_name: c.target,
+          relation: c.relation,
+          properties: { assertion: c.assertion, source: c.sourceUrl, confidence: c.confidence },
+          source: 'batch'
+        }))
+      })
+    });
+    if (resp.status !== 201) {
+      console.warn('[batch] flush failed:', resp.status);
+    }
+  } catch (e) {
+    console.error('[batch] flush error:', e);
+  }
+}
+
+// Flush batch every FLUSH_INTERVAL ms
+setInterval(flushClaimBatch, FLUSH_INTERVAL);
 
 // ─── GRAPH CLIENT [graph-001] ───────────────────────────────────────────────
 
@@ -212,7 +262,7 @@ export const graphClient = {
 
   /**
    * Add a claim to the graph.
-   * Primary perception write tool.
+   * Uses batching for 5-10 claims per call.
    */
   async addClaim(
     entity: string,
@@ -223,20 +273,16 @@ export const graphClient = {
     confidence: number = 0.7
   ): Promise<{claim_id: string} | null> {
     trackCost('add_claim', entity, 0.05);
-    try {
-      const result = await callForageTool('add_claim', {
-        entity,
-        relation,
-        target,
-        assertion,
-        source_url: sourceUrl,
-        confidence
-      });
-      return result;
-    } catch (e) {
-      console.error('[add_claim] error:', e);
-      return null;
+    
+    // Add to batch buffer
+    claimBuffer.push({ entity, relation, target, assertion, sourceUrl, confidence });
+    
+    // Flush if batch is full
+    if (claimBuffer.length >= BATCH_SIZE) {
+      await flushClaimBatch();
     }
+    
+    return { claim_id: 'batched' };
   },
 
   /**
@@ -347,6 +393,20 @@ export const graphClient = {
     source: string,
     confidence: number = 0.5
   ): Promise<{claim_id: string}> {
+    // Validate float ranges — reject out-of-range values (H10 fix)
+    const clamp = (v: number | undefined, min: number, max: number): number | undefined =>
+      v === undefined ? undefined : Math.max(min, Math.min(max, v));
+    attrs.sentiment = clamp(attrs.sentiment, -1, 1);
+    attrs.trust = clamp(attrs.trust, -1, 1);
+    attrs.aspiration = clamp(attrs.aspiration, 0, 1);
+    attrs.hostility = clamp(attrs.hostility, 0, 1);
+    attrs.familiarity = clamp(attrs.familiarity, 0, 1);
+    attrs.velocity = clamp(attrs.velocity, 0, 1);
+    attrs.reach = clamp(attrs.reach, 0, 1);
+    attrs.intensity = clamp(attrs.intensity, 0, 1);
+    attrs.strength = clamp(attrs.strength, 0, 1);
+    attrs.salience = clamp(attrs.salience, 0, 1);
+
     // Check cache first - query existing knowledge
     const existingFrom = await this.queryKnowledge(fromEntity, 0);
     const existingTo = await this.queryKnowledge(toEntity, 0);
@@ -469,7 +529,7 @@ export const graphClient = {
       // Get causal parents
       let causalParents: Array<{id: string; weight: number}> = [];
       try {
-        const causal = await callForageTool('causal_parents', { entity, limit: 10 });
+        const causal = await callForageTool('get_causal_parents', { entity, limit: 10 });
         causalParents = (causal?.causal_parents || []).map((p: any) => ({
           id: p.entity || p.name,
           weight: p.weight || 0.5

@@ -69,11 +69,12 @@ Add to your `claude_desktop_config.json`:
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
-        "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-      ]
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
     }
   }
 }
@@ -96,11 +97,12 @@ Add to your Claude Code settings (`.claude/settings.json` or global config):
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
-        "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-      ]
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
     }
   }
 }
@@ -114,15 +116,18 @@ Add to Cursor's MCP configuration in Settings → Features → MCP:
 
 ```json
 {
-  "forage": {
-    "command": "npx",
-    "args": [
-      "-y",
-      "mcp-remote",
-      "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-      "--header",
-      "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-    ]
+  "mcpServers": {
+    "forage": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
+    }
   }
 }
 ```

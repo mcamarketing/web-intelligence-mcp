@@ -7,6 +7,7 @@
  */
 
 import { graphClient, getCostTracker, isBudgetExceeded } from './forage-graph-client.js';
+import { createHash } from 'node:crypto';
 
 const PORT = parseInt(process.env.PORT || '8000');
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
@@ -83,8 +84,7 @@ function parseMission(mission: string): string[] {
 }
 
 function hashId(str: string): string {
-  const crypto = require('node:crypto');
-  return crypto.createHash('sha256').update(str).digest('hex').substring(0, 12);
+  return createHash('sha256').update(str).digest('hex').substring(0, 12);
 }
 
 // ─── ROUTES [routes-001] ───────────────────────────────────────────────────
@@ -99,7 +99,7 @@ async function handleRequest(req: Request, res: any): Promise<void> {
   try {
     // POST /orchestrate
     if (method === 'POST' && pathname === '/orchestrate') {
-      const body = await req.json();
+      const body = await req.json() as OrchestrateRequest;
       const result = await orchestrate(body);
       res.json(result);
       return;
@@ -107,7 +107,7 @@ async function handleRequest(req: Request, res: any): Promise<void> {
     
     // POST /fitness-update
     if (method === 'POST' && pathname === '/fitness-update') {
-      const body = await req.json();
+      const body = await req.json() as FitnessUpdateRequest;
       const result = await fitnessUpdate(body);
       res.json(result);
       return;

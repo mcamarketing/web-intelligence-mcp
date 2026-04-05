@@ -17,6 +17,30 @@ interface MiroFishConfig {
   temperature?: number;
 }
 
+interface MiroFishStartResponse {
+  sim_id: string;
+}
+
+interface MiroFishPrediction {
+  entity: string;
+  value: number;
+  confidence?: number;
+}
+
+interface MiroFishNarrative {
+  topic: string;
+  sentiment?: number;
+  velocity?: number;
+  reach?: number;
+}
+
+interface MiroFishResultResponse {
+  sim_id: string;
+  predictions?: MiroFishPrediction[];
+  narratives?: MiroFishNarrative[];
+  completed_at?: string;
+}
+
 // ─── BRIDGE [bridge-001] ───────────────────────────────────────────────────
 
 export class MiroFishBridge {
@@ -54,7 +78,7 @@ export class MiroFishBridge {
       throw new Error(`MiroFish error: ${response.status} ${response.statusText}`);
     }
     
-    const result = await response.json();
+    const result = await response.json() as MiroFishStartResponse;
     const simId = result.sim_id;
     
     console.log(`[MIROFISH] Started simulation: ${simId}`);
@@ -83,8 +107,8 @@ export class MiroFishBridge {
           throw new Error(`MiroFish error: ${response.status}`);
         }
         
-        const result = await response.json();
-        
+        const result = await response.json() as MiroFishResultResponse;
+
         // Format as SimReport
         const report: SimReport = {
           sim_id: result.sim_id,

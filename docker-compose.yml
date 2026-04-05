@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile.scrapling
     ports:
       - "8001:8001"
-    env:
+    environment:
       - APIFY_TOKEN=${APIFY_TOKEN}
       - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
       - SCRAPLING_HEADLESS=true
@@ -35,7 +35,7 @@ services:
       - "8000:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    env:
+    environment:
       - APIFY_TOKEN=${APIFY_TOKEN}
       - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
       - MIROFISH_HOST=http://mirofish:7000
@@ -75,7 +75,7 @@ services:
       context: .
       dockerfile: Dockerfile.python
     command: python3 ingest/gdelt_agent.py
-    env:
+    environment:
       - APIFY_TOKEN=${APIFY_TOKEN}
       - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
       - GDELT_INTERVAL=300
@@ -94,7 +94,7 @@ services:
       context: .
       dockerfile: Dockerfile.python
     command: python3 ingest/reddit_sentiment.py
-    env:
+    environment:
       - APIFY_TOKEN=${APIFY_TOKEN}
       - FORAGE_ENDPOINT=${FORAGE_ENDPOINT:-https://ernesta-labs--forage.apify.actor}
       - REDDIT_SUBREDDITS=russia,ukraine,tatarstan,kazan

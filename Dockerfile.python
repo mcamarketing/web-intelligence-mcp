@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir \
     pandas
 
 # Copy ingest scripts
-COPY ingest/ ./ingent/
+COPY ingest/ ./ingest/
 COPY validators/ ./validators/
 
 # Default: run reddit sentiment (gdelt can be run separately)

@@ -191,11 +191,12 @@ Add Forage to Claude Desktop or Claude Code:
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
-        "https://mcp.apify.com/?tools=ernesta_labs/forage----mcp-server-for-ai-agents",
-        "--header",
-        "Authorization: Bearer YOUR_APIFY_API_TOKEN"
-      ]
+        "@anthropic/mcp-proxy",
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN"
+      }
     }
   }
 }

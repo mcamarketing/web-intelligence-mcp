@@ -58,7 +58,27 @@ export interface ScrapingOptions {
 
 export class ScraplingRouter {
   private readonly FREE_SOURCES = FREE_SOURCES;
-  
+  private scraplingHealthy: boolean | null = null;
+  private lastHealthCheck = 0;
+  private static readonly HEALTH_TTL_MS = 30_000; // re-check every 30s
+
+  /**
+   * Probe scrapling bridge health. Cached for 30s.
+   */
+  private async isScraplingReachable(): Promise<boolean> {
+    if (this.scraplingHealthy !== null && Date.now() - this.lastHealthCheck < ScraplingRouter.HEALTH_TTL_MS) {
+      return this.scraplingHealthy;
+    }
+    try {
+      const resp = await fetch(`${SCRAPLING_URL}/health`, { signal: AbortSignal.timeout(3000) });
+      this.scraplingHealthy = resp.ok;
+    } catch {
+      this.scraplingHealthy = false;
+    }
+    this.lastHealthCheck = Date.now();
+    return this.scraplingHealthy;
+  }
+
   /**
    * Check if URL is a free data source.
    */
@@ -132,25 +152,40 @@ export class ScraplingRouter {
     // Step 2: Determine routing
     const isFree = this.isFreeSource(url);
     const hasToken = !!APIFY_TOKEN;
-    
+    const scraplingUp = await this.isScraplingReachable();
+
     let result: PageData;
     let cost = 0;
 
     if (isFree || !hasToken) {
-      // Route to Scrapling bridge (free)
+      // Free source or no token — MUST use Scrapling bridge
+      if (!scraplingUp) {
+        console.error(`[ROUTER] Scrapling bridge unreachable — rejecting scrape for ${url}`);
+        return {
+          url,
+          error: 'SCRAPLING_BRIDGE_UNAVAILABLE: free-tier scraping requires the Scrapling service. Start it with docker compose up scrapling.',
+          graph_written: false,
+          cost_usd: 0
+        };
+      }
       console.log(`[ROUTER] Routing to Scrapling: ${url}`);
       result = await this.scrapeWithScrapling(url, opts?.schema);
       cost = 0.05; // add_claim cost
+    } else if (scraplingUp) {
+      // Prefer Scrapling even for paid URLs when available (cost savings)
+      console.log(`[ROUTER] Routing to Scrapling (cost-save): ${url}`);
+      result = await this.scrapeWithScrapling(url, opts?.schema);
+      cost = 0.05;
     } else {
-      // Route to Forage MCP (paid)
-      console.log(`[ROUTER] Routing to Forage MCP: ${url}`);
+      // Route to Forage MCP (paid) — only when Scrapling is down AND we have a token
+      console.warn(`[ROUTER] Scrapling down, falling back to paid Forage MCP: ${url}`);
       result = await this.scrapeWithForage(url, opts?.schema);
       cost = 0.12; // scrape_page + add_claim
     }
 
     // Step 3: Write to graph if entity name provided
     if (entityName && result.content && !result.error) {
-      await this.writeToGraph(entityName, opts?.entityType || 'Entity', result, opts?.sourceLabel || url, cost);
+      await this.writeToGraph(entityName, (opts?.entityType || 'Entity') as EntityType, result, opts?.sourceLabel || url, cost);
       result.graph_written = true;
     }
 
@@ -173,7 +208,7 @@ export class ScraplingRouter {
         throw new Error(`Scrapling error: ${response.status}`);
       }
       
-      const data = await response.json();
+      const data = await response.json() as { url?: string; title?: string; content?: string; text_content?: string };
       return {
         url: data.url || url,
         title: data.title,
@@ -214,7 +249,7 @@ export class ScraplingRouter {
         throw new Error(`Forage error: ${response.status}`);
       }
       
-      const data = await response.json();
+      const data = await response.json() as any;
       const content = data.result?.content?.[0]?.text 
         ? JSON.parse(data.result.content[0].text) 
         : {};
@@ -275,7 +310,13 @@ export class ScraplingRouter {
       return [];
     }
 
+    const scraplingUp = await this.isScraplingReachable();
+
     if (!APIFY_TOKEN) {
+      if (!scraplingUp) {
+        console.error(`[ROUTER] Scrapling bridge unreachable — rejecting search`);
+        return [];
+      }
       // Use Scrapling
       try {
         const response = await fetch(`${SCRAPLING_URL}/search`, {
@@ -284,11 +325,11 @@ export class ScraplingRouter {
           body: JSON.stringify({ query, max_results: maxResults })
         });
         
-        const data = await response.json();
-        return (data.results || []).map((r: any) => ({
-          title: r.title,
-          url: r.url,
-          snippet: r.snippet
+        const data = await response.json() as { results?: Array<{ title?: string; url?: string; snippet?: string }> };
+        return (data.results || []).map((r) => ({
+          title: r.title || '',
+          url: r.url || '',
+          snippet: r.snippet || ''
         }));
       } catch (e) {
         console.error('[ROUTER] Scrapling search failed:', e);
@@ -315,7 +356,7 @@ export class ScraplingRouter {
         })
       });
       
-      const data = await response.json();
+      const data = await response.json() as { result?: { content?: Array<{ text?: string }> } };
       const results = data.result?.content?.[0]?.text 
         ? JSON.parse(data.result.content[0].text) 
         : [];

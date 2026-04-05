@@ -10,6 +10,7 @@ description: |
 
 homepage: https://github.com/ErnestaLabs/web-intelligence-mcp
 documentation: https://github.com/ErnestaLabs/web-intelligence-mcp#readme
+readme: https://raw.githubusercontent.com/ErnestaLabs/web-intelligence-mcp/main/README.md
 
 author:
   name: Riccardo Minniti

@@ -48,7 +48,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json`:
       "command": "npx",
       "args": [
         "-y", "@anthropic/mcp-proxy",
-        "https://mcamarketing--forage.apify.actor/mcp/sse"
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
       ],
       "env": {
         "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
@@ -69,7 +69,7 @@ Add to MCP settings:
       "command": "npx",
       "args": [
         "-y", "@anthropic/mcp-proxy",
-        "https://mcamarketing--forage.apify.actor/mcp/sse"
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
       ],
       "env": {
         "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
@@ -81,7 +81,7 @@ Add to MCP settings:
 
 ### Custom SSE Connection
 
-Connect to `https://mcamarketing--forage.apify.actor/mcp/sse` with your Apify token in the Authorization header.
+Connect to `https://ernesta-labs--forage.apify.actor/mcp/sse` with your Apify token in the Authorization header.
 
 ## Configuration
 
@@ -135,7 +135,7 @@ New Apify accounts receive $5 platform credit to try Forage risk-free.
 ## Links
 
 - **GitHub:** https://github.com/ErnestaLabs/web-intelligence-mcp
-- **Apify Actor:** https://apify.com/mcamarketing/forage
+- **Apify Actor:** https://apify.com/ernesta_labs/forage
 - **Smithery:** https://smithery.ai/servers/Ernesta_Labs/forage_mcp
 - **Author:** Riccardo Minniti / Ernesta Labs (riccardo@ernestalabs.com)
 

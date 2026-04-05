@@ -12,7 +12,7 @@ Built on Apify's scraping infrastructure. Powered by FalkorDB for persistent gra
 **Organization:** Ernesta Labs  
 **Contact:** [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)  
 **GitHub:** [github.com/ErnestaLabs/web-intelligence-mcp](https://github.com/ErnestaLabs/web-intelligence-mcp)  
-**Apify:** [apify.com/mcamarketing/forage](https://apify.com/mcamarketing/forage)
+**Apify:** [apify.com/ernesta_labs/forage](https://apify.com/ernesta_labs/forage)
 
 ---
 
@@ -211,7 +211,7 @@ Go to [Apify Console → Settings → Integrations](https://console.apify.com/ac
       "command": "npx",
       "args": [
         "-y", "@anthropic/mcp-proxy",
-        "https://mcamarketing--forage.apify.actor/mcp/sse"
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
       ],
       "env": {
         "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
@@ -230,7 +230,7 @@ Go to [Apify Console → Settings → Integrations](https://console.apify.com/ac
       "command": "npx",
       "args": [
         "-y", "@anthropic/mcp-proxy",
-        "https://mcamarketing--forage.apify.actor/mcp/sse"
+        "https://ernesta-labs--forage.apify.actor/mcp/sse"
       ],
       "env": {
         "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
@@ -240,7 +240,7 @@ Go to [Apify Console → Settings → Integrations](https://console.apify.com/ac
 }
 ```
 
-**n8n / LangGraph / Custom:** Connect to the SSE endpoint at `https://mcamarketing--forage.apify.actor/mcp/sse` with your Apify token in the Authorization header.
+**n8n / LangGraph / Custom:** Connect to the SSE endpoint at `https://ernesta-labs--forage.apify.actor/mcp/sse` with your Apify token in the Authorization header.
 
 ### 3. System Prompt (Optional)
 
@@ -367,7 +367,7 @@ The 25% markup covers: proxy infrastructure, knowledge graph storage, email veri
 - **Email:** [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)
 - **GitHub:** [github.com/ErnestaLabs/web-intelligence-mcp](https://github.com/ErnestaLabs/web-intelligence-mcp)
 - **Issues:** [github.com/ErnestaLabs/web-intelligence-mcp/issues](https://github.com/ErnestaLabs/web-intelligence-mcp/issues)
-- **Apify Actor:** [apify.com/mcamarketing/forage](https://apify.com/mcamarketing/forage)
+- **Apify Actor:** [apify.com/ernesta_labs/forage](https://apify.com/ernesta_labs/forage)
 - **Documentation:** See [QUICKSTART.md](./QUICKSTART.md) and [EXAMPLES.md](./EXAMPLES.md)
 
 ---

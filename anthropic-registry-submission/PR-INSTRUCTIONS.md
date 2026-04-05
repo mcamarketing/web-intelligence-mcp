@@ -79,7 +79,7 @@ Adds Forage MCP server for web intelligence, verified B2B contacts, and persiste
 ## Server Details
 - **Author:** Riccardo Minniti / Ernesta Labs (riccardo@ernestalabs.com)
 - **Repository:** https://github.com/ErnestaLabs/web-intelligence-mcp
-- **Homepage:** https://apify.com/mcamarketing/forage
+- **Homepage:** https://apify.com/ernesta_labs/forage
 - **License:** MIT
 - **Runtime:** Apify Actor (SSE endpoint)
 

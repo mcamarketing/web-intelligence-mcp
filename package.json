@@ -4,6 +4,14 @@
   "description": "Forage MCP Server — web search, scraping, company intelligence, email discovery, lead generation, and persistent knowledge graph for AI agents",
   "author": "Riccardo Minniti / Ernesta Labs <riccardo@ernestalabs.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ErnestaLabs/web-intelligence-mcp.git"
+  },
+  "homepage": "https://github.com/ErnestaLabs/web-intelligence-mcp",
+  "bugs": {
+    "url": "https://github.com/ErnestaLabs/web-intelligence-mcp/issues"
+  },
   "type": "module",
   "main": "dist/main.js",
   "scripts": {

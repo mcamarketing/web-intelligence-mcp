@@ -11,7 +11,7 @@ Built on Apify's scraping infrastructure. Powered by FalkorDB for persistent gra
 **Author:** Riccardo Minniti  
 **Organization:** Ernesta Labs  
 **Contact:** [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)  
-**GitHub:** [github.com/mcamarketing/web-intelligence-mcp](https://github.com/mcamarketing/web-intelligence-mcp)  
+**GitHub:** [github.com/ErnestaLabs/web-intelligence-mcp](https://github.com/ErnestaLabs/web-intelligence-mcp)  
 **Apify:** [apify.com/mcamarketing/forage](https://apify.com/mcamarketing/forage)
 
 ---
@@ -365,8 +365,8 @@ The 25% markup covers: proxy infrastructure, knowledge graph storage, email veri
 
 - **Author:** Riccardo Minniti / Ernesta Labs
 - **Email:** [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)
-- **GitHub:** [github.com/mcamarketing/web-intelligence-mcp](https://github.com/mcamarketing/web-intelligence-mcp)
-- **Issues:** [github.com/mcamarketing/web-intelligence-mcp/issues](https://github.com/mcamarketing/web-intelligence-mcp/issues)
+- **GitHub:** [github.com/ErnestaLabs/web-intelligence-mcp](https://github.com/ErnestaLabs/web-intelligence-mcp)
+- **Issues:** [github.com/ErnestaLabs/web-intelligence-mcp/issues](https://github.com/ErnestaLabs/web-intelligence-mcp/issues)
 - **Apify Actor:** [apify.com/mcamarketing/forage](https://apify.com/mcamarketing/forage)
 - **Documentation:** See [QUICKSTART.md](./QUICKSTART.md) and [EXAMPLES.md](./EXAMPLES.md)
 

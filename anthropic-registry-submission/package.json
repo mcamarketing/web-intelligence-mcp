@@ -1,0 +1,41 @@
+{
+  "name": "@modelcontextprotocol/server-forage",
+  "version": "1.0.0",
+  "description": "Forage MCP Server — Web intelligence, verified B2B contacts, and persistent knowledge graph for AI agents",
+  "type": "module",
+  "bin": {
+    "mcp-server-forage": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "web-scraping",
+    "email-finder",
+    "lead-generation",
+    "knowledge-graph",
+    "b2b-sales",
+    "prospecting",
+    "company-intelligence"
+  ],
+  "author": "Riccardo Minniti / Ernesta Labs <riccardo@ernestalabs.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ErnestaLabs/web-intelligence-mcp"
+  },
+  "homepage": "https://apify.com/mcamarketing/forage",
+  "bugs": {
+    "url": "https://github.com/ErnestaLabs/web-intelligence-mcp/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

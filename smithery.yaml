@@ -1,0 +1,174 @@
+# Smithery.ai Configuration for Forage MCP
+# https://smithery.ai/docs/server-configuration
+
+name: forage
+version: 1.0.0
+description: |
+  Forage MCP Server — Web intelligence & persistent knowledge graph for AI agents.
+  Real-time web search, company data, verified B2B emails, lead generation, 
+  and a self-accumulating graph that remembers everything.
+
+homepage: https://github.com/mcamarketing/forage-mcp
+documentation: https://github.com/mcamarketing/forage-mcp#readme
+
+author: 
+  name: Mark Cameron
+  email: mark@mcamarketing.net
+
+license: MIT
+
+runtime:
+  type: node
+  version: "20"
+  entrypoint: dist/main.js
+  buildCommand: npm run build
+
+environment:
+  required:
+    - name: APIFY_TOKEN
+      description: Apify API token for web scraping
+      example: "apify_api_xxxxxxxxxxxx"
+    
+    - name: GRAPH_API_SECRET
+      description: FalkorDB graph API secret
+      example: "xxxxxxxxxxxx"
+  
+  optional:
+    - name: FORAGE_ENDPOINT
+      description: Forage orchestration endpoint
+      default: "https://ernesta-labs--forage.apify.actor"
+    
+    - name: MIROFISH_HOST
+      description: MiroFish simulation host
+      default: "http://mirofish:7000"
+
+tools:
+  # Web Intelligence Tools
+  - name: web_search
+    description: Search the web with Google-like results
+    parameters:
+      query:
+        type: string
+        description: Search query
+        required: true
+      
+  - name: scrape_url
+    description: Extract clean content from any URL
+    parameters:
+      url:
+        type: string
+        description: URL to scrape
+        required: true
+      
+  - name: discover_company
+    description: Get complete company intelligence
+    parameters:
+      company_name:
+        type: string
+        description: Company name to research
+        required: true
+      
+  - name: find_emails
+    description: Discover verified B2B email addresses
+    parameters:
+      domain:
+        type: string
+        description: Company domain (e.g., stripe.com)
+        required: true
+      
+  - name: local_leads
+    description: Find local businesses with contact info
+    parameters:
+      location:
+        type: string
+        description: City or region
+        required: true
+      industry:
+        type: string
+        description: Industry type
+        required: true
+
+  # Knowledge Graph Tools
+  - name: graph_query
+    description: Query the knowledge graph
+    parameters:
+      query:
+        type: string
+        description: Natural language query
+        required: true
+      
+  - name: add_to_graph
+    description: Add discovered information to graph
+    parameters:
+      entity:
+        type: object
+        description: Entity to add
+        required: true
+      
+  - name: find_connections
+    description: Discover hidden connections in graph
+    parameters:
+      entity_name:
+        type: string
+        description: Starting entity
+        required: true
+
+categories:
+  - web-search
+  - data-extraction
+  - lead-generation
+  - knowledge-graph
+  - b2b-intelligence
+
+keywords:
+  - web-scraping
+  - company-intelligence
+  - email-finder
+  - b2b-leads
+  - knowledge-graph
+  - falkordb
+  - apify
+  - mcp
+  - model-context-protocol
+
+display:
+  icon: 🔍
+  color: "#3B82F6"
+  tags:
+    - "Web Intelligence"
+    - "Knowledge Graph"
+    - "B2B Data"
+
+examples:
+  - title: "Search and Research"
+    description: "Search for companies and add to knowledge graph"
+    prompt: |
+      Search for "fintech companies in Singapore" and research 
+      the top 3 results, adding their details to my knowledge graph.
+  
+  - title: "Find Email Addresses"
+    description: "Discover verified B2B emails for a company"
+    prompt: |
+      Find verified email addresses for stripe.com and return 
+      them in a table with confidence scores.
+  
+  - title: "Local Lead Generation"
+    description: "Find local business leads"
+    prompt: |
+      Find marketing agencies in Austin, TX with contact information 
+      and save them to the knowledge graph.
+
+pricing:
+  type: free
+  details: |
+    Free to use. Requires own Apify account for scraping.
+    Graph storage via FalkorDB (free tier available).
+
+support:
+  issues: https://github.com/mcamarketing/forage-mcp/issues
+  email: mark@mcamarketing.net
+
+repository:
+  type: git
+  url: https://github.com/mcamarketing/forage-mcp.git
+  branch: main

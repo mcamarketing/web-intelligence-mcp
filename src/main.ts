@@ -11,8 +11,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { graphClient } from './forage-graph-client.js';
 
-await Actor.init();
-
 // ==========================================
 // ERNESTA LABS BIBLE SECTION 5: PRICING CONFIG
 // ==========================================
@@ -76,7 +74,7 @@ const VERIFIED_ACTORS = new Map<string, { charge: number; unit: string; desc: st
 // FREE CREDIT SYSTEM ($1 per user)
 // ==========================================
 
-const FREE_CREDIT_USD = 1.0;
+const FREE_CREDIT_USD = 5.0;
 const userCredits = new Map<string, number>();
 let currentApiToken = '';
 
@@ -148,7 +146,6 @@ const TOOLS = [
   { name: 'get_causal_children', description: 'Find entities this entity drives downstream. Returns causal relationships with weights. Use for impact analysis. Cost: $0.03', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'get_causal_path', description: 'Find the highest causal-weight path between two entities. Returns path with mechanism details. Use for understanding influence chains. Cost: $0.05', inputSchema: { type: 'object', properties: { from_entity: { type: 'string' }, to_entity: { type: 'string' } }, required: ['from_entity', 'to_entity'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'simulate', description: 'Simulate a shock/boost/remove intervention on an entity. Propagates impact through causal graph with attenuation. Returns affected entities and residual impacts. Use for scenario planning. Cost: $0.10', inputSchema: { type: 'object', properties: { entity: { type: 'string' }, intervention: { type: 'string', enum: ['shock', 'boost', 'remove'] }, depth: { type: 'number', default: 3 } }, required: ['entity', 'intervention'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'list_regime_entities', description: 'List all entities with a specific regime label. Use to find stressed or pre_tipping entities. Cost: $0.02', inputSchema: { type: 'object', properties: { regime: { type: 'string', enum: ['normal', 'stressed', 'pre_tipping', 'post_event'] } }, required: ['regime'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'list_regime_entities', description: 'List all entities with a specific regime label. Use to find stressed or pre_tipping entities. Cost: $0.02', inputSchema: { type: 'object', properties: { regime: { type: 'string', enum: ['normal', 'stressed', 'pre_tipping', 'post_event'] } }, required: ['regime'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'list_verified_actors', description: 'List available Apify actors that can be run via call_actor. Returns actor IDs, descriptions, and pricing. Use before call_actor to find the right actor. Cost: $0.01', inputSchema: { type: 'object', properties: { category: { type: 'string', default: 'all' } } }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'get_actor_schema', description: 'Get input schema and pricing for a specific Apify actor. Use before call_actor to understand required parameters. Cost: $0.01', inputSchema: { type: 'object', properties: { actor_id: { type: 'string' } }, required: ['actor_id'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
@@ -983,6 +980,8 @@ async function handleSkillKasprEnrich({ linkedin_id, prospect_name }: any) {
 // ==========================================
 
 async function main() {
+  await Actor.init();
+  
   const standbyPort = process.env.ACTOR_STANDBY_PORT || process.env.ACTOR_WEB_SERVER_PORT;
   console.error(`[Forage] STANDBY_PORT: ${standbyPort}`);
   console.error(`[Forage] WEB_SERVER_URL: ${process.env.ACTOR_WEB_SERVER_URL}`);
@@ -1059,6 +1058,11 @@ async function main() {
 
   process.on('SIGTERM', async () => { await Actor.exit(); process.exit(0); });
   process.on('SIGINT',  async () => { await Actor.exit(); process.exit(0); });
+}
+
+// Sandbox server for Smithery scanning
+export function createSandboxServer() {
+  return setupMcpServer();
 }
 
 main().catch(console.error);

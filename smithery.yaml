@@ -8,8 +8,8 @@ description: |
   Real-time web search, company data, verified B2B emails, lead generation, 
   and a self-accumulating graph that remembers everything.
 
-homepage: https://github.com/mcamarketing/forage-mcp
-documentation: https://github.com/mcamarketing/forage-mcp#readme
+homepage: https://github.com/mcamarketing/web-intelligence-mcp
+documentation: https://github.com/mcamarketing/web-intelligence-mcp#readme
 
 author:
   name: Riccardo Minniti
@@ -170,5 +170,5 @@ support:
 
 repository:
   type: git
-  url: https://github.com/mcamarketing/forage-mcp.git
+  url: https://github.com/mcamarketing/web-intelligence-mcp.git
   branch: main

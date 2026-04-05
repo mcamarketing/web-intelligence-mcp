@@ -1,8 +1,18 @@
 # Forage MCP — Web Intelligence & Persistent Knowledge Graph for AI Agents
 
+**By Riccardo Minniti / Ernesta Labs** | [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)
+
 Forage is a Model Context Protocol (MCP) server that gives AI agents **real-time web intelligence** and a **self-accumulating knowledge graph**. One connection provides 24 tools and 12 multi-step skills: web search, company data, verified B2B emails, local leads, and a graph that remembers everything your agent has ever discovered.
 
 Built on Apify's scraping infrastructure. Powered by FalkorDB for persistent graph storage.
+
+---
+
+**Author:** Riccardo Minniti  
+**Organization:** Ernesta Labs  
+**Contact:** [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)  
+**GitHub:** [github.com/mcamarketing/web-intelligence-mcp](https://github.com/mcamarketing/web-intelligence-mcp)  
+**Apify:** [apify.com/mcamarketing/forage](https://apify.com/mcamarketing/forage)
 
 ---
 
@@ -200,10 +210,12 @@ Go to [Apify Console → Settings → Integrations](https://console.apify.com/ac
     "forage": {
       "command": "npx",
       "args": [
-        "-y", "mcp-remote",
-        "https://mcamarketing--forage.apify.actor",
-        "--header", "Authorization: Bearer YOUR_APIFY_TOKEN"
-      ]
+        "-y", "@anthropic/mcp-proxy",
+        "https://mcamarketing--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
+      }
     }
   }
 }
@@ -213,18 +225,22 @@ Go to [Apify Console → Settings → Integrations](https://console.apify.com/ac
 
 ```json
 {
-  "forage": {
-    "command": "npx",
-    "args": [
-      "-y", "mcp-remote",
-      "https://mcamarketing--forage.apify.actor",
-      "--header", "Authorization: Bearer YOUR_APIFY_TOKEN"
-    ]
+  "mcpServers": {
+    "forage": {
+      "command": "npx",
+      "args": [
+        "-y", "@anthropic/mcp-proxy",
+        "https://mcamarketing--forage.apify.actor/mcp/sse"
+      ],
+      "env": {
+        "APIFY_API_TOKEN": "YOUR_APIFY_TOKEN"
+      }
+    }
   }
 }
 ```
 
-**n8n / LangGraph / Custom:** Connect to the SSE endpoint at `https://mcamarketing--forage.apify.actor` with your Apify token in the Authorization header.
+**n8n / LangGraph / Custom:** Connect to the SSE endpoint at `https://mcamarketing--forage.apify.actor/mcp/sse` with your Apify token in the Authorization header.
 
 ### 3. System Prompt (Optional)
 
@@ -347,6 +363,15 @@ The 25% markup covers: proxy infrastructure, knowledge graph storage, email veri
 
 ## Support & Links
 
-- **GitHub Issues:** [github.com/mcamarketing/web-intelligence-mcp/issues](https://github.com/mcamarketing/web-intelligence-mcp/issues)
-- **Apify Actor:** [mcamarketing/forage](https://apify.com/mcamarketing/forage)
+- **Author:** Riccardo Minniti / Ernesta Labs
+- **Email:** [riccardo@ernestalabs.com](mailto:riccardo@ernestalabs.com)
+- **GitHub:** [github.com/mcamarketing/web-intelligence-mcp](https://github.com/mcamarketing/web-intelligence-mcp)
+- **Issues:** [github.com/mcamarketing/web-intelligence-mcp/issues](https://github.com/mcamarketing/web-intelligence-mcp/issues)
+- **Apify Actor:** [apify.com/mcamarketing/forage](https://apify.com/mcamarketing/forage)
 - **Documentation:** See [QUICKSTART.md](./QUICKSTART.md) and [EXAMPLES.md](./EXAMPLES.md)
+
+---
+
+## License
+
+MIT License — Copyright (c) 2026 Riccardo Minniti / Ernesta Labs

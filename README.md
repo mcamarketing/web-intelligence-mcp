@@ -106,6 +106,32 @@ One call. Five to eight sources merged into a single intelligence package.
 
 ---
 
+## Who This Is For
+
+**AI agents running live research workflows:**
+- Sales development teams using agents to find and qualify leads
+- Competitive intelligence analysts building market maps on demand
+- Investment research workflows discovering funding rounds and cap table changes
+- Recruitment pipelines finding decision-makers and their hiring signals
+- Compliance systems tracking entity relationships and regime changes
+
+**Anyone whose agent makes decisions based on data:**
+If your agent needs to know something real about the world—not guess, not hallucinate, but *know*—and remember what it learned so next time it's smarter, this is for you.
+
+---
+
+## What Changes
+
+**Before Forage:** Agent searches → reads results → answers → forgets. Repeat tomorrow.
+
+**With Forage:** Agent searches → graph stores it → tomorrow agent knows it → adds what's new → moves on. Knowledge compounds.
+
+Real scenario: You ask your agent about Stripe's competitors. With Forage, your agent profiles 15 competitors in 2 minutes, sources funding for each, finds key execs, detects which ones are hiring aggressively right now. You get a decision-ready landscape. Next month you ask again—your agent still has all 15 profiles, adds the hiring changes, the new funding rounds. You're not starting from zero.
+
+That knowledge advantage grows every day.
+
+---
+
 ## And on the flip side: what happens if you don't?
 
 Your agent stays exactly where it is. Every search starts from zero. Every company lookup is a fresh scrape. Every lead list is manual. Your competitors' agents are building knowledge graphs, discovering connections, getting smarter every day, and yours is forgetting everything it learns within the session.
@@ -137,12 +163,30 @@ $5 in free credits, loaded to your account the moment you connect. This is Forag
 | $5 free | 167 web searches, or 71 page scrapes, or 50 email lookups, or 1 full dossier + 33 searches |
 | $10 | ~1,000 tool calls across all features |
 | $50 | Full research pipeline: dozens of dossiers, hundreds of searches, thousands of graph queries |
+| $100/mo | Continuous competitive intelligence + lead discovery for one market or sales team |
+
+**Real cost models:**
+- Sales team using Forage daily to prospect: $300-600/month (for a human researcher: $5-10k/month salary)
+- Due diligence pipeline running market scans: $200-400/month in data costs (vs. $2k/month Clearbit + S&P Capital IQ subscriptions)
+- Competitive intelligence in-house: $100-200/month (vs. $1k/month third-party intelligence services)
+
+You pay for what your agent uses. Scale up or down instantly. No vendor lock-in.
 
 ---
 
-## Quick Start
+## How It Works
 
-Get an Apify token at [console.apify.com](https://console.apify.com/account/integrations). Takes 30 seconds. Forage adds $5 in free credits to your first session, regardless of your Apify account status.
+When your agent uses Forage, it makes a single MCP connection. Your request routes to our server, which orchestrates multiple Apify data actors in parallel—web scrapers, email finders, LinkedIn extractors, market crawlers. Each actor runs simultaneously. Results merge, deduplicate, and enrich into a single response. The entire result feeds into a persistent knowledge graph. Next time you ask about the same company or market, your agent already knows.
+
+No API keys to manage. No rate limits to chase. No integration tax. You send Apify credentials once and Forage handles the rest: data sourcing, deduplication, graph enrichment, causal analysis.
+
+---
+
+## Setup: 30 Seconds, One Token
+
+Get an Apify token at [console.apify.com](https://console.apify.com/account/integrations). That's it. No additional API keys needed.
+
+Forage adds $5 in free credits to your first session, regardless of your Apify account status. You're live.
 
 **Claude Desktop** (add to `%APPDATA%\Claude\claude_desktop_config.json`):
 
@@ -189,6 +233,44 @@ Get an Apify token at [console.apify.com](https://console.apify.com/account/inte
 **n8n / LangGraph / Custom:** Connect to `https://ernesta-labs--forage.apify.actor/mcp` with your Apify token in the Authorization header.
 
 ---
+
+## No API Keys. No Setup.
+
+You don't configure SerpAPI, Jina, Google Places, Apollo, or any other service. That's our problem. You bring Apify credentials. We handle everything else: sourcing, orchestration, deduplication, graph enrichment, causal analysis. One token. Full stack.
+
+---
+
+---
+
+## FAQ
+
+**Q: Is this a search wrapper?**
+No. Search is one capability. We search, scrape, discover emails, extract LinkedIn data, pull Crunchbase, check reviews, map markets, analyze competitors, detect hiring signals, and synthesize it all into a knowledge graph that *remembers*. Every result feeds the graph. Every query checks the graph first.
+
+**Q: Do I need multiple API keys?**
+No. One Apify token. We orchestrate everything server-side.
+
+**Q: How fresh is the data?**
+Real-time for web searches and scrapes. Graph data is what your agent discovered, plus what others using Forage have discovered and shared into the graph. You own your queries; the graph is shared intelligence.
+
+**Q: Can I use this offline?**
+No. Forage is a web service. Your agent connects via MCP to live data sources. Every query hits the web.
+
+**Q: What about rate limits?**
+You share Apify infrastructure. Each actor has its own rate limits, but we parallelize: if one scraper hits a limit, five others finish while we wait. Your results still come back fast.
+
+**Q: Does the knowledge graph persist?**
+Yes. Everything your agent discovers stays in the graph. You can query it, add claims to it, analyze causal chains, simulate interventions. Your agent's institutional knowledge grows every session.
+
+**Q: How do I stop costs?**
+Stop calling. That's it. No subscriptions, no minimums. $0 spend = $0 bill. You control every call.
+
+**Q: What if your service goes down?**
+Your agent keeps working on cached graph data. It just can't do live research. You'll hear from us immediately if there's an outage.
+
+---
+
+## Contact
 
 - **Email:** [director@useforage.xyz](mailto:director@useforage.xyz)
 - **Website:** [useforage.xyz](https://useforage.xyz)

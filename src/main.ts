@@ -129,7 +129,7 @@ const TOOLS = [
   { name: 'scrape_page', description: 'Extract clean text content from any URL. Use when you need webpage content as structured text. Returns title and body text. Cost: $0.07', inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'get_company_info', description: 'Get website summary and email contacts for a company domain. Use for quick company overview. For comprehensive profiles use skill_company_dossier instead. Cost: $0.08', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, find_emails: { type: 'boolean', default: true } }, required: ['domain'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'find_emails', description: 'Find verified email addresses for people at a company. Returns name, email, title, seniority, department, LinkedIn, and confidence score. Use when you need contact emails for a specific domain. Cost: $0.10', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, limit: { type: 'number', default: 10 } }, required: ['domain'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'find_local_leads', description: 'Find local businesses by type and location. Returns name, address, phone, website, rating, review count. Use for local service businesses (dentists, plumbers, restaurants). For B2B tech leads use find_leads instead. Cost: $0.15', inputSchema: { type: 'object', properties: { keyword: { type: 'string' }, location: { type: 'string' }, radius: { type: 'number', default: 5000 }, max_results: { type: 'number', default: 20 } }, required: ['keyword', 'location'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'find_local_leads', description: 'Find local businesses by type and location via Google Maps. Returns name, address, phone, website, rating — and automatically scrapes emails from each website. Up to 200 results. Use for medspas, dentists, restaurants, gyms, any local business. Cost: $0.15', inputSchema: { type: 'object', properties: { keyword: { type: 'string', description: 'e.g. "medspa" or "dental clinic"' }, location: { type: 'string', description: 'e.g. "London, UK" or "New York"' }, max_results: { type: 'number', default: 50, description: 'Up to 200' }, enrich_emails: { type: 'boolean', default: true, description: 'Scrape emails from each website' } }, required: ['keyword', 'location'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'find_leads', description: 'Generate B2B lead list with verified emails. Filter by job_title, location, industry, company_size. Returns name, email, title, company, LinkedIn. Use for outbound sales prospecting. For local businesses use find_local_leads instead. Cost: $0.25/100 leads', inputSchema: { type: 'object', properties: { job_title: { type: 'string' }, location: { type: 'string' }, industry: { type: 'string' }, company_size: { type: 'string' }, keywords: { type: 'string' }, company_website: { type: 'string' }, num_leads: { type: 'number', default: 100 }, email_status: { type: 'string', default: 'verified' } }, required: ['job_title'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'query_knowledge', description: 'Search the knowledge graph for previously researched entities. Use to recall companies, people, or facts from past Forage tool calls. Only returns data from your previous research, not live data. Cost: $0.02', inputSchema: { type: 'object', properties: { question: { type: 'string' }, entity_type: { type: 'string', enum: ['Company', 'Person', 'Location', 'Industry', 'any'], default: 'any' }, min_confidence: { type: 'number', default: 0.7 } }, required: ['question'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'enrich_entity', description: 'Retrieve all accumulated data about a company from the knowledge graph. Use after previous research to get full entity profile. For fresh data use get_company_info or skill_company_dossier instead. Cost: $0.03', inputSchema: { type: 'object', properties: { identifier: { type: 'string', description: 'e.g., "stripe.com" or "Stripe"' } }, required: ['identifier'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
@@ -150,21 +150,7 @@ const TOOLS = [
   { name: 'list_verified_actors', description: 'List available Apify actors that can be run via call_actor. Returns actor IDs, descriptions, and pricing. Use before call_actor to find the right actor. Cost: $0.01', inputSchema: { type: 'object', properties: { category: { type: 'string', default: 'all' } } }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'get_actor_schema', description: 'Get input schema and pricing for a specific Apify actor. Use before call_actor to understand required parameters. Cost: $0.01', inputSchema: { type: 'object', properties: { actor_id: { type: 'string' } }, required: ['actor_id'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
   { name: 'call_actor', description: 'Execute any Apify actor with custom input. Use list_verified_actors and get_actor_schema first to find actors and understand inputs. Set max_cost_usd to limit spending. Cost: actor price + 25%', inputSchema: { type: 'object', properties: { actor_id: { type: 'string' }, input: { type: 'object' }, timeout_secs: { type: 'number', default: 120 }, max_cost_usd: { type: 'number' } }, required: ['actor_id', 'input'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  // ORIGINAL SKILLS
-  { name: 'skill_company_dossier', description: 'SKILL: Comprehensive company research. Returns website summary, email patterns, and 10 key contacts with titles. Use for deep company research. For quick overview use get_company_info instead. Cost: $0.50', inputSchema: { type: 'object', properties: { domain: { type: 'string' } }, required: ['domain'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_prospect_company', description: 'SKILL: Find 15 decision makers at a company with verified emails, sorted by seniority. Use when targeting a specific company for outreach. For broader lead lists use skill_outbound_list. Cost: $0.75', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, seniority: { type: 'string', default: 'senior,director,vp,c_suite' } }, required: ['domain'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_outbound_list', description: 'SKILL: Generate 100 B2B leads with verified emails, ready for CRM export. Filter by job title, location, industry, company size. Use for building outbound prospecting lists. Cost: $3.50', inputSchema: { type: 'object', properties: { job_title: { type: 'string' }, location: { type: 'string' }, industry: { type: 'string' }, company_size: { type: 'string' } }, required: ['job_title'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_local_market_map', description: 'SKILL: Find all businesses of a type in a location (up to 60). Returns name, address, phone, website, rating, hours. Use for local market research or local lead generation. Cost: $0.80', inputSchema: { type: 'object', properties: { business_type: { type: 'string' }, location: { type: 'string' } }, required: ['business_type', 'location'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_competitor_intel', description: 'SKILL: Analyze competitor pricing, features, and reviews. Scrapes pricing pages, feature lists, and review sites. Use for competitive research. Cost: $0.80', inputSchema: { type: 'object', properties: { competitor_url: { type: 'string' }, focus: { type: 'string', enum: ['pricing', 'features', 'both'], default: 'both' } }, required: ['competitor_url'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_decision_maker_finder', description: 'SKILL: Find 20 decision makers at a company with verified emails. Filter by department (sales, marketing, engineering, executive). Use when you need more contacts than skill_prospect_company provides. Cost: $1.00', inputSchema: { type: 'object', properties: { domain: { type: 'string' }, departments: { type: 'string', default: 'sales,marketing,engineering,executive' } }, required: ['domain'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  // NEW SKILLS
-  { name: 'skill_competitor_ads', description: 'SKILL: Find active ads from a competitor. Returns ad library links, ad copy examples, and landing pages. Use for competitive advertising research. Cost: $0.65', inputSchema: { type: 'object', properties: { competitor_name: { type: 'string', description: 'Company name e.g. "Notion"' }, competitor_domain: { type: 'string', description: 'Optional domain e.g. "notion.so"' } }, required: ['competitor_name'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_job_signals', description: 'SKILL: Analyze job listings to reveal hiring strategy and growth areas. Returns job listings, department trends, and growth signals. Use for investment research or competitive intelligence. Cost: $0.55', inputSchema: { type: 'object', properties: { company_name: { type: 'string' }, domain: { type: 'string', description: 'Optional domain' } }, required: ['company_name'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_tech_stack', description: 'SKILL: Detect technologies and platforms a company uses. Returns detected tools with categories. Use for sales targeting or competitive research. Cost: $0.45', inputSchema: { type: 'object', properties: { domain: { type: 'string', description: 'Company domain e.g. "hubspot.com"' } }, required: ['domain'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_funding_intel', description: 'SKILL: Get funding history, investors, and recent news for a company. Returns funding rounds, amounts, investors, and news articles. Use for investment research or sales qualification. Cost: $0.70', inputSchema: { type: 'object', properties: { company_name: { type: 'string' }, domain: { type: 'string', description: 'Optional domain' } }, required: ['company_name'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_social_proof', description: 'SKILL: Collect reviews and testimonials for a company from review platforms. Returns reviews, ratings, and sentiment themes. Use for competitive research or sales qualification. Cost: $0.55', inputSchema: { type: 'object', properties: { company_name: { type: 'string' }, domain: { type: 'string', description: 'Optional domain' } }, required: ['company_name'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_market_map', description: 'SKILL: Discover all competitors in a market. Returns players, positioning, and pricing tiers. Use for market research or competitive landscape analysis. Cost: $1.20', inputSchema: { type: 'object', properties: { market: { type: 'string', description: 'e.g. "email marketing software"' }, max_competitors: { type: 'number', default: 10 } }, required: ['market'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
-  { name: 'skill_kaspr_enrich', description: 'SKILL: Get phone numbers and email addresses for a LinkedIn profile. Requires LinkedIn profile ID and full name. Returns verified contact info. Cost: $0.75', inputSchema: { type: 'object', properties: { linkedin_id: { type: 'string', description: 'LinkedIn profile ID (the part after /in/)' }, prospect_name: { type: 'string', description: 'Full name of the prospect' } }, required: ['linkedin_id', 'prospect_name'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
+  { name: 'search_apify_store', description: 'Search the Apify actor store (1500+ actors). Use to find the right actor for any task not covered by core tools — emails, LinkedIn, social media, jobs, real estate, e-commerce, AI, and more. Then call it with call_actor. Free', inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'e.g. "linkedin email finder" or "instagram scraper"' }, category: { type: 'string', description: 'Optional: lead-generation, social-media, e-commerce, travel, real-estate, jobs, ai, web-scraping' }, limit: { type: 'number', default: 20 } }, required: ['query'] }, annotations: { readOnlyHint: true, destructiveHint: false } },
 ];
 
 // ==========================================
@@ -205,19 +191,7 @@ export function setupMcpServer() {
         case 'list_verified_actors': return await handleListVerifiedActors(args as any);
         case 'get_actor_schema': return await handleGetActorSchema(args as any);
         case 'call_actor': return await handleCallActor(args as any);
-        case 'skill_company_dossier': return await handleSkillCompanyDossier(args as any);
-        case 'skill_prospect_company': return await handleSkillProspectCompany(args as any);
-        case 'skill_outbound_list': return await handleSkillOutboundList(args as any);
-        case 'skill_local_market_map': return await handleSkillLocalMarketMap(args as any);
-        case 'skill_competitor_intel': return await handleSkillCompetitorIntel(args as any);
-        case 'skill_decision_maker_finder': return await handleSkillDecisionMakerFinder(args as any);
-        case 'skill_competitor_ads': return await handleSkillCompetitorAds(args as any);
-        case 'skill_job_signals': return await handleSkillJobSignals(args as any);
-        case 'skill_tech_stack': return await handleSkillTechStack(args as any);
-        case 'skill_funding_intel': return await handleSkillFundingIntel(args as any);
-        case 'skill_social_proof': return await handleSkillSocialProof(args as any);
-        case 'skill_market_map': return await handleSkillMarketMap(args as any);
-        case 'skill_kaspr_enrich': return await handleSkillKasprEnrich(args as any);
+        case 'search_apify_store': return await handleSearchApifyStore(args as any);
         default: throw new Error(`Unknown tool: ${name}`);
       }
     } catch (error) {
@@ -636,21 +610,88 @@ async function handleFindEmails({ domain, limit = 10 }: { domain: string; limit?
   };
 }
 
-async function handleFindLocalLeads({ keyword, location, radius = 5000, max_results = 20 }: any) {
+async function handleFindLocalLeads({ keyword, location, radius = 5000, max_results = 50, enrich_emails = true }: any) {
   const cost = PRICING.FIND_LOCAL_LEADS.charge;
   const { charged, freeUsed, remaining } = applyCredit(cost);
   if (charged > 0) await chargeIfNotOwner(PRICING.FIND_LOCAL_LEADS.event, 1);
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) throw new Error('GOOGLE_PLACES_API_KEY not configured');
-  const { data } = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', { params: { query: `${keyword} in ${location}`, radius, key, maxResults: max_results } });
-  const leads = await Promise.all((data.results || []).slice(0, max_results).map(async (place: any) => {
-    try {
-      const details = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', { params: { place_id: place.place_id, fields: 'website,formatted_phone_number', key } });
-      return { name: place.name, address: place.formatted_address, rating: place.rating, user_ratings_total: place.user_ratings_total, place_id: place.place_id, website: details.data.result?.website, phone: details.data.result?.formatted_phone_number, location: place.geometry?.location };
-    } catch { return { name: place.name, address: place.formatted_address, rating: place.rating, place_id: place.place_id }; }
-  }));
-  graphClient.ingest('find_local_leads', { keyword, location, leads });
-  return { content: [{ type: 'text', text: JSON.stringify({ keyword, location, leads_found: leads.length, leads, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
+
+  // Step 1: Google Maps scraper via Apify — no API key needed
+  let places: any[] = [];
+  try {
+    const run = await Actor.start('apify/google-maps-scraper', {
+      searchStringsArray: [`${keyword} in ${location}`],
+      maxCrawledPlacesPerSearch: Math.min(max_results, 200),
+      includeHistogram: false,
+      includeOpeningHours: false,
+      includePeopleAlsoSearch: false,
+      language: 'en',
+    });
+    const timeout = 5 * 60 * 1000;
+    const start = Date.now();
+    let poll = 3000;
+    while (Date.now() - start < timeout) {
+      const runInfo = await Actor.apifyClient.run(run.id).get();
+      if (!runInfo) break;
+      if (runInfo.status === 'SUCCEEDED') {
+        const dataset = await Actor.apifyClient.dataset(runInfo.defaultDatasetId!).listItems({ limit: 250 });
+        places = (dataset.items as any[]).slice(0, max_results).map((p: any) => ({
+          name: p.title || p.name,
+          address: p.address || p.street,
+          phone: p.phone || p.phoneUnformatted,
+          website: p.website,
+          rating: p.totalScore || p.rating,
+          reviews: p.reviewsCount,
+          category: p.categoryName || keyword,
+          location: { lat: p.location?.lat, lng: p.location?.lng },
+          google_maps_url: p.url,
+        }));
+        break;
+      }
+      if (['FAILED', 'ABORTED', 'TIMED_OUT'].includes(runInfo.status!)) break;
+      await new Promise(r => setTimeout(r, poll));
+      poll = Math.min(poll * 1.4, 12000);
+    }
+  } catch (e: any) {
+    console.error('[find_local_leads] maps scraper error:', e.message);
+  }
+
+  // Fallback: Google search if maps scraper failed
+  if (places.length === 0) {
+    const results = await apifySearch(`${keyword} ${location} address phone`, Math.min(max_results, 30));
+    places = results.map(r => ({ name: r.title, website: r.url, snippet: r.snippet }));
+  }
+
+  // Step 2: Email enrichment — scrape contact/about pages for each place with a website
+  if (enrich_emails) {
+    const websitesWithDomains = places
+      .filter(p => p.website)
+      .slice(0, Math.min(places.length, 100)); // cap to 100 enrichments
+
+    await Promise.allSettled(websitesWithDomains.map(async (place) => {
+      try {
+        const domain = new URL(place.website).hostname.replace(/^www\./, '');
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        const junkDomains = /noreply|example|sentry|amazonaws|wix\.com|squarespace/;
+        const emails = new Set<string>();
+
+        await Promise.allSettled(['/contact', '/contact-us', '/about', ''].map(async (slug) => {
+          try {
+            const res = await axios.get(`https://${domain}${slug}`, {
+              timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' }, maxRedirects: 2,
+            });
+            const found = res.data.match(emailRegex) || [];
+            found.filter((e: string) => e.endsWith(domain) || !junkDomains.test(e)).forEach((e: string) => emails.add(e));
+          } catch { /* silent */ }
+        }));
+
+        if (emails.size > 0) place.emails = Array.from(emails).slice(0, 5);
+        place.email_domain = domain;
+      } catch { /* silent */ }
+    }));
+  }
+
+  graphClient.ingest('find_local_leads', { keyword, location, leads: places });
+  return { content: [{ type: 'text', text: JSON.stringify({ keyword, location, leads_found: places.length, enrich_emails, leads: places, cost_usd: cost, free_credit_used: freeUsed, free_credit_remaining: remaining }, null, 2) }] };
 }
 
 async function handleFindLeads(args: any) {
@@ -1505,6 +1546,33 @@ async function main() {
 
   process.on('SIGTERM', async () => { await Actor.exit(); process.exit(0); });
   process.on('SIGINT',  async () => { await Actor.exit(); process.exit(0); });
+}
+
+// ==========================================
+// APIFY STORE SEARCH — find actors for any task
+// ==========================================
+
+async function handleSearchApifyStore({ query, category, limit = 20 }: { query: string; category?: string; limit?: number }) {
+  try {
+    const params: Record<string, string> = { search: query, limit: String(Math.min(limit, 50)) };
+    if (category) params.category = category;
+    const res = await axios.get('https://api.apify.com/v2/store', {
+      params,
+      headers: process.env.APIFY_TOKEN ? { Authorization: `Bearer ${process.env.APIFY_TOKEN}` } : {},
+      timeout: 15000,
+    });
+    const items = (res.data?.data?.items || []).map((a: any) => ({
+      id: `${a.username}/${a.name}`,
+      title: a.title,
+      description: (a.description || '').slice(0, 200),
+      category: a.categories?.[0] || 'uncategorized',
+      runs: a.stats?.totalRuns || 0,
+      rating: a.stats?.averageRating,
+    }));
+    return { content: [{ type: 'text', text: JSON.stringify({ total: items.length, query, actors: items }, null, 2) }] };
+  } catch (e: any) {
+    return { content: [{ type: 'text', text: `Store search failed: ${e.message}. Try call_actor with a known actor ID like "apify/google-search-scraper".` }], isError: true };
+  }
 }
 
 // Sandbox server for Smithery scanning

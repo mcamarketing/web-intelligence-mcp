@@ -4,35 +4,37 @@
 
 ---
 
-## Your agent is smart. Until you ask it to do something real.
+## Your agent hallucinates. Let's be honest about that.
 
-It hallucinates company facts. It can't find emails. It has no memory between sessions. Every research task starts from zero. It reads a search result, answers your question, and forgets everything it found.
+You ask it: "Who are Stripe's main competitors?" It tells you confidently about companies that don't exist. You ask: "Find me 50 qualified leads." It returns hallucinations with made-up email addresses. You say: "What did you learn about this market last month?" It says: "I have no memory of last month."
 
 You're not running an intelligent agent. You're running a smart model with amnesia.
 
-Other tools give your agent search results, give it a page to read. That's the ceiling. Your agent reads, answers, forgets. Tomorrow it knows nothing about what it learned today.
+Every research workflow starts from zero. Your agent searches, reads, answers, forgets. Tomorrow, when you ask about the same company, the same market, the same competitors—it learned nothing. Zero institutional knowledge. Zero compounding research.
 
-**What's the reasoning behind settling for that,** when your competitors' agents could be building institutional knowledge while yours starts from scratch every single time?
+Meanwhile, your competitor's agent? It's built a knowledge graph of 1 million entities. When it researches Stripe, it already knows the investors, the hires, the tech stack, the acquisition history. It adds what's new and moves on. Six months in, their agent knows your market better than you do.
+
+**What does it cost you when your agent is starting from zero every single time, while smarter agents are building permanent intelligence?**
 
 ---
 
-## Let's say your agent actually had a brain.
+## What if your agent actually had a memory?
 
-Imagine your agent searched Stripe six weeks ago. It found their competitors, funding history, key executives, tech stack, hiring patterns. Today you ask about Stripe again and your agent already knows all of it. No re-scraping. No guessing. It adds what is new and moves on.
+Imagine your agent researched Stripe six weeks ago. Found funding, competitors, tech stack, hiring timeline, key executives. Today you ask about Stripe again. Your agent says: "I already know Stripe. Last time I found 15 competitors, Series D at $95B valuation, currently hiring 30 engineers on the infrastructure team. Here's what changed since then." No re-scraping. No hallucinations. Just: this is what we know, here's what's new.
 
-That's not a search tool. That's a compounding intelligence asset.
+That's not a research tool. That's an intelligence asset.
 
-**What would be different for you if your agent:**
+**What would actually be different if your agent could:**
 
-- Found 200 verified B2B leads while you slept, with emails, titles, LinkedIn profiles, filtered by role and location
-- Profiled any company from a domain name: funding, investors, tech stack, hiring signals, competitor positioning, social proof, all from live sources
-- Discovered the relationship between two companies you're researching, not from memory, but from a graph of nearly **1 million entities** with 200+ typed relationship types
-- Tracked hiring trends at a prospect over time, saw them shift from engineering hires to sales hires, and told you what that means
-- Ran causal analysis, not "here's data" but "here's what happens if X happens to Y"
+- Run market analysis on Day 1 and still reference it on Day 180, watching hiring patterns, funding announcements, feature launches in real-time
+- Answer "find me leads matching X criteria" and check its graph first—return cached results instantly, add new matches, never double-scrape
+- Tell you "Company A and Company B share three investors" not from guessing, but from a 1-million-entity graph it built over months
+- Track a prospect's hiring signals over time and tell you "they're moving from product to sales focus—here's when they'll be buying"
+- Run causal analysis on market shocks and tell you which of your prospects will be affected and why
 
-**Step into that version of your agent for a second.** One that searches, scrapes, discovers emails, maps markets, profiles companies, tracks signals, analyzes competitors, and remembers all of it in a graph that gets smarter every day.
+**Step into that version of your workflow for a second.** Every research compounds. Every discovery sticks. Your agent gets smarter, faster, cheaper every single day.
 
-What would that do for your workflow?
+What does your competitive position look like then? What decisions become obvious that aren't obvious now?
 
 ---
 
@@ -134,11 +136,17 @@ That knowledge advantage grows every day.
 
 ## And on the flip side: what happens if you don't?
 
-Your agent stays exactly where it is. Every search starts from zero. Every company lookup is a fresh scrape. Every lead list is manual. Your competitors' agents are building knowledge graphs, discovering connections, getting smarter every day, and yours is forgetting everything it learns within the session.
+Two days from now: you're asking your agent the same questions about the same companies because it forgot everything. 
 
-Two days, two weeks, two months, two years from now: your agent still hallucinates company data. Still can't find emails. Still has no memory. Still starts from nothing every time you ask it to research something.
+Two weeks from now: you've spent hours re-scraping data you already scraped once. Your competitor's agent has added 200 new entities to its graph.
 
-Meanwhile the agents that connected to Forage six months ago? They know more about your market than you do. Because everything they've ever found is still there. Connected. Growing.
+Two months from now: you're still paying for email lookups you already did. You're still hallucinating on company facts. Your lead generation is still manual. Your agent still has no memory.
+
+Two years from now: your agent is exactly where it was two years ago. Zero institutional knowledge. Zero compounding intelligence. Zero advantage. Your competitor's agent? It's analyzed 10,000 companies. It knows hiring signals before they're public. It sees the connections you can't. It's profitable because it remembers.
+
+That's the cost of amnesia. Not in dollars. In momentum. In decision quality. In how far behind you fall.
+
+Meanwhile the agents that connected to Forage six months ago? They know more about their markets than the humans do. Because everything they've ever found is still there. Connected. Growing. Compounding every single day.
 
 ---
 

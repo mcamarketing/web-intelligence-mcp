@@ -10,11 +10,8 @@
   "buildTag": "latest",
   "environmentVariables": {
     "APIFY_LOG_LEVEL": "INFO",
-    "SERPAPI_KEY": "@SERPAPI_KEY",
-    "JINA_AI_KEY": "@JINA_AI_KEY",
-    "GOOGLE_PLACES_API_KEY": "@GOOGLE_PLACES_API_KEY",
-    "APOLLO_API_KEY": "@APOLLO_API_KEY",
-    "KASPR_API_KEY": "@KASPR_API_KEY"
+    "GRAPH_API_SECRET": "@GRAPH_API_SECRET",
+    "GRAPH_API_URL": "@GRAPH_API_URL"
   },
   "inputSchema": {
     "title": "Forage MCP Server",

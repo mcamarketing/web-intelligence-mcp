@@ -145,7 +145,7 @@ export async function qualifyLead(contact: IntercomContact): Promise<LeadScore> 
 
   try {
     // Get company info from Forage
-    const companyResult = await graphClient.enrich(domain);
+    const companyResult = await graphClient.queryKnowledge(domain, 0);
     if (companyResult.found) {
       companyData = companyResult;
       score += 20;

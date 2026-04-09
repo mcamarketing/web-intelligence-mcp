@@ -1844,7 +1844,10 @@ async function main() {
       res.json({ status: 'ok', server: 'forage', transport: 'streamable-http', tools: TOOLS.length }));
 
     app.get('/tools', (_req: any, res: any) => {
-      currentApiToken = extractToken(_req.headers['authorization']);
+      // Extract token from Authorization header or query string (for standby actors)
+      const authHeader = _req.headers['authorization'];
+      const queryToken = _req.query?.token;
+      currentApiToken = extractToken(authHeader) || (queryToken ? String(queryToken) : '');
       res.json({ tools: TOOLS.map(t => ({ name: t.name, description: t.description, required: t.inputSchema.required || [] })) });
     });
 
@@ -1896,7 +1899,10 @@ async function main() {
 
     app.post('/call/:tool', async (req: any, res: any) => {
       try {
-        currentApiToken = extractToken(req.headers['authorization']);
+        // Extract token from Authorization header or query string (for standby actors)
+        const authHeader = req.headers['authorization'];
+        const queryToken = req.query?.token;
+        currentApiToken = extractToken(authHeader) || (queryToken ? String(queryToken) : '');
         const toolName = req.params.tool;
         const args = req.body || {};
         
@@ -1959,8 +1965,10 @@ async function main() {
 
     app.all('*', async (req: any, res: any) => {
       try {
-        // Extract API token from Authorization header
-        currentApiToken = extractToken(req.headers['authorization']);
+        // Extract API token from Authorization header or query string (for standby actors)
+        const authHeader = req.headers['authorization'];
+        const queryToken = req.query?.token;
+        currentApiToken = extractToken(authHeader) || (queryToken ? String(queryToken) : '');
 
         // New session: POST with no mcp-session-id header
         if (req.method === 'POST' && !req.headers['mcp-session-id']) {
